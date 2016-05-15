@@ -73,7 +73,8 @@ public:
      * @param y is the y values of trajectory points.
      * @param t is the timestamps of trajectory points.
      */
-    static void parseMOPSI(QString fileName, QVector<double> &x, QVector<double> &y, QVector<double> &t);
+    static void parseMOPSI(QString fileName, QVector<double> &x, QVector<double> &y, QVector<double> &t,
+                           bool doMercator = true, bool doNormalize = true);
 
     /**
      * @brief parseGeoLife parses a GeoLife data file. Reference to Dr. Yu Zheng in MRA (Microsoft Research in Asia)
@@ -83,7 +84,8 @@ public:
      * @param y is the y values of trajectory points.
      * @param t is the timestamps of trajectory points.
      */
-    static void parseGeoLife(QString fileName, QVector<double> &x, QVector<double> &y, QVector<double> &t);
+    static void parseGeoLife(QString fileName, QVector<double> &x, QVector<double> &y, QVector<double> &t,
+                             bool doMercator = true, bool doNormalize = true);
 
     /**
      * @brief mercatorProject does mercator projection on the longitude/latitude pairs.
@@ -92,8 +94,8 @@ public:
      * @param x is the x values of positions.
      * @param y is the y values of positions.
      */
-    static void mercatorProject(QVector<double> &longitude, QVector<double> &latitude, QVector<double> &x,
-                                QVector<double> &y);
+    static double mercatorProject(QVector<double> &longitude, QVector<double> &latitude, QVector<double> &x,
+                                QVector<double> &y, double sf = -1);
 
     /**
      * @brief normalizeData normalizes data array by sutracts values by the mean or the first value. Method behavior

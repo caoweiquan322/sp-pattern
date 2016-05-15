@@ -45,7 +45,8 @@ void Helper::checkPositive(QString name, double value)
     }
 }
 
-void Helper::parseMOPSI(QString fileName, QVector<double> &x, QVector<double> &y, QVector<double> &t)
+void Helper::parseMOPSI(QString fileName, QVector<double> &x, QVector<double> &y, QVector<double> &t,
+                        bool doMercator, bool doNormalize)
 {
     // Check if file name is null or empty.
     Helper::checkNotNullNorEmpty("fileName", fileName);
@@ -83,12 +84,19 @@ void Helper::parseMOPSI(QString fileName, QVector<double> &x, QVector<double> &y
             t.append(timestamp);
         }
         // Do mercator projection on the parsed longitude/latitude.
-        mercatorProject(longitude, latitude, x, y);
+        if (doMercator) {
+            mercatorProject(longitude, latitude, x, y);
+        } else {
+            x = longitude;
+            y = latitude;
+        }
 
         // Normalize data by first value of each array.
-        Helper::normalizeData(x, true);
-        Helper::normalizeData(y, true);
-        Helper::normalizeData(t, false);
+        if (doNormalize) {
+            Helper::normalizeData(x, true);
+            Helper::normalizeData(y, true);
+            Helper::normalizeData(t, false);
+        }
     }
     catch (DotsException &e)
     {
@@ -100,7 +108,8 @@ void Helper::parseMOPSI(QString fileName, QVector<double> &x, QVector<double> &y
     }
 }
 
-void Helper::parseGeoLife(QString fileName, QVector<double> &x, QVector<double> &y, QVector<double> &t)
+void Helper::parseGeoLife(QString fileName, QVector<double> &x, QVector<double> &y, QVector<double> &t,
+                          bool doMercator, bool doNormalize)
 {
     // Check if file name is null or empty.
     Helper::checkNotNullNorEmpty("fileName", fileName);
@@ -142,12 +151,20 @@ void Helper::parseGeoLife(QString fileName, QVector<double> &x, QVector<double> 
             t.append(timestamp);
         }
         // Do mercator projection on the parsed longitude/latitude.
-        mercatorProject(longitude, latitude, x, y);
+        if (doMercator) {
+            mercatorProject(longitude, latitude, x, y);
+        } else {
+            x = longitude;
+            y = latitude;
+        }
+
 
         // Normalize data by first value of each array.
-        Helper::normalizeData(x, true);
-        Helper::normalizeData(y, true);
-        Helper::normalizeData(t, false);
+        if (doNormalize) {
+            Helper::normalizeData(x, true);
+            Helper::normalizeData(y, true);
+            Helper::normalizeData(t, false);
+        }
     }
     catch (DotsException &e)
     {
@@ -160,8 +177,8 @@ void Helper::parseGeoLife(QString fileName, QVector<double> &x, QVector<double> 
 }
 
 // Problem with points whose latitude nears pi/2 was fixed.
-void Helper::mercatorProject(QVector<double> &longitude, QVector<double> &latitude, QVector<double> &x,
-                                     QVector<double> &y)
+double Helper::mercatorProject(QVector<double> &longitude, QVector<double> &latitude, QVector<double> &x,
+                                     QVector<double> &y, double sf)
 {
     // Check if input position array is of the same size.
     Helper::checkIntEqual(longitude.count(), latitude.count());
@@ -176,18 +193,21 @@ void Helper::mercatorProject(QVector<double> &longitude, QVector<double> &latitu
         int pointCount = longitude.count();
         if(pointCount<=0)
         {
-            return;
+            return -1;
         }
 
         // Calculate the average scale factor.
         const double earthRadius = 6378100.0;
-        double rx, ry, sf=0;// Longitude/latitude in radian.
-        for(int i=0; i<pointCount; ++i)
-        {
-            sf += 1.0/qCos(qDegreesToRadians(latitude[i]));
+        double rx, ry;// Longitude/latitude in radian.
+        if (sf <= 0) {
+            sf = 0.0;
+            for(int i=0; i<pointCount; ++i)
+            {
+                sf += 1.0/qCos(qDegreesToRadians(latitude[i]));
+            }
+            sf/=pointCount;
+            sf = qRound(sf/SCALE_FACTOR_PRECISION)*SCALE_FACTOR_PRECISION;
         }
-        sf/=pointCount;
-        sf = qRound(sf/SCALE_FACTOR_PRECISION)*SCALE_FACTOR_PRECISION;
 
         // Do projection.
         for(int i=0; i<pointCount; ++i)
@@ -199,6 +219,8 @@ void Helper::mercatorProject(QVector<double> &longitude, QVector<double> &latitu
             x.append(rx*earthRadius/sf);
             y.append(ry*earthRadius/sf);
         }
+
+        return sf;
     }
     catch(DotsException &e)
     {
@@ -208,6 +230,7 @@ void Helper::mercatorProject(QVector<double> &longitude, QVector<double> &latitu
     {
         DotsException("Error occured when doing mercator projection.").raise();
     }
+    return -1;
 }
 
 void Helper::normalizeData(QVector<double> &x, bool byMean)

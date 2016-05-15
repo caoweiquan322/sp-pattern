@@ -1,0 +1,150 @@
+/* This software is developed by caoweiquan322 OR DynamicFatty.
+ * All rights reserved.
+ *
+ * Author: caoweiquan322
+ */
+
+#include "Trajectory.h"
+#include "Helper.h"
+#include "SpatialTemporalPoint.h"
+#include <QtMath>
+#include "SpatialTemporalException.h"
+#include "mainwindow.h"
+#include "DotsSimplifier.h"
+
+const double Trajectory::MERCATOR_LATITUDE_LB = 2.5*2.0-M_PI/2;
+const double Trajectory::MERCATOR_LATITUDE_UB = 87.5*2.0-M_PI/2;
+const double Trajectory::SCALE_FACTOR_PRECISION = 1e-4;
+const double Trajectory::EARCH_RADIUS = 6378100.0;
+
+Trajectory::Trajectory(QObject *parent) : QObject(parent)
+{
+    this->coordinateType = Trajectory::LongitudeLatitude;
+    this->normalized = false;
+}
+
+Trajectory::Trajectory(const Trajectory &traj)
+{
+    this->referencePointInLL = traj.referencePointInLL;
+    this->referencePointInXY = traj.referencePointInXY;
+    this->points = traj.points;
+    this->coordinateType = traj.coordinateType;
+    this->normalized = traj.normalized;
+}
+
+Trajectory::Trajectory(QString filePath)
+{
+    Helper::checkNotNullNorEmpty("Trajectory file path", filePath);
+    QVector<double> longitude, latitude, timestamp;
+    if (filePath.endsWith(".txt")) {
+        // MOPSI dataset.
+        Helper::parseMOPSI(filePath, longitude, latitude, timestamp, false, false);
+    } else if (filePath.endsWith(".plt")) {
+        // GeoLife dataset.
+        Helper::parseGeoLife(filePath, longitude, latitude, timestamp, false, false);
+    } else {
+        SpatialTemporalException(QString("Unrecognized file type: [%1]").arg(filePath)).raise();
+    }
+    // Copy the points
+    this->coordinateType = Trajectory::LongitudeLatitude;
+    this->normalized = false;
+    this->setPoints(longitude, latitude, timestamp);
+}
+
+void Trajectory::setReferencePoint(const SpatialTemporalPoint &referenceInLL)
+{
+    this->referencePointInLL = referenceInLL;
+    this->referencePointInXY = doMercatorProject(referenceInLL);
+}
+
+void Trajectory::setPoints(const QVector<double> &longitude, const QVector<double> &latitude,
+                           const QVector<double> &timestamp)
+{
+    Helper::checkIntEqual(longitude.count(), latitude.count());
+    Helper::checkIntEqual(latitude.count(), timestamp.count());
+    for (int i=0; i<longitude.count(); ++i)
+        this->points.append(SpatialTemporalPoint(longitude.at(i), latitude.at(i), timestamp.at(i)));
+    this->coordinateType = Trajectory::LongitudeLatitude;
+}
+
+int Trajectory::count()
+{
+    return points.count();
+}
+
+void Trajectory::doMercatorProject()
+{
+
+    double sf = getMercatorScaleFactor();
+    double finalFactor = EARCH_RADIUS/sf;
+    SpatialTemporalPoint p;
+    double ry;
+    for (int i=0; i<this->points.count(); ++i)
+    {
+        p = this->points.at(i);
+        this->points[i].x = qDegreesToRadians(p.x)*finalFactor;
+        ry = qDegreesToRadians(Helper::limitVal(p.y, MERCATOR_LATITUDE_LB, MERCATOR_LATITUDE_UB));
+        ry = qLn(qFabs(qTan(ry)+1.0/qCos(ry)));
+        this->points[i].y = ry*finalFactor;
+    }
+    this->coordinateType = Trajectory::XandY;
+}
+
+SpatialTemporalPoint Trajectory::doMercatorProject(const SpatialTemporalPoint &p)
+{
+    double sf = getMercatorScaleFactor();
+    double finalFactor = EARCH_RADIUS/sf;
+    SpatialTemporalPoint ret;
+    ret.x = qDegreesToRadians(p.x)*finalFactor;
+    ret.y = qDegreesToRadians(Helper::limitVal(p.y, MERCATOR_LATITUDE_LB, MERCATOR_LATITUDE_UB));
+    ret.y = qLn(qFabs(qTan(ret.y)+1.0/qCos(ret.y)))*finalFactor;
+    ret.t = p.t;
+
+    return ret;
+}
+
+void Trajectory::doNormalize()
+{
+    SpatialTemporalPoint reference = this->coordinateType == Trajectory::LongitudeLatitude ?
+                this->referencePointInLL : this->referencePointInXY;
+    for (int i=0; i<this->points.count(); ++i)
+    {
+        this->points[i] -= reference;
+    }
+    this->normalized = true;
+}
+
+Trajectory Trajectory::simplify(double threshold)
+{
+    QVector<double> _x, _y, _t;
+    foreach (SpatialTemporalPoint p, points) {
+        _x.append(p.x);
+        _y.append(p.y);
+        _t.append(p.t);
+    }
+
+    QVector<int> indices;
+    DotsSimplifier::batchDotsCascadeByIndex(_x, _y, _t, indices, threshold);
+    Trajectory traj(*this);
+    Helper::slice<SpatialTemporalPoint>(this->points, indices, traj.points);
+    return traj;
+}
+
+void Trajectory::visualize(Qt::GlobalColor color, QString curveName)
+{
+    MainWindow *figure = new MainWindow();
+    QVector<double> _x, _y;
+    foreach (SpatialTemporalPoint p, points) {
+        _x.append(p.x);
+        _y.append(p.y);
+    }
+    figure->plot(_x, _y, color, curveName);
+    figure->show();
+}
+
+double Trajectory::getMercatorScaleFactor()
+{
+    double sf = 1.0/qCos(qDegreesToRadians(this->referencePointInLL.y));
+    return qRound(sf/SCALE_FACTOR_PRECISION)*SCALE_FACTOR_PRECISION;
+}
+
