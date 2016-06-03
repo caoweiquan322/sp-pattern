@@ -14,6 +14,7 @@ CONFIG   += console
 
 TEMPLATE = app
 
+INCLUDEPATH += /Users/fatty/Downloads/birch-clustering-algorithm/boost_1_61_0
 
 SOURCES += main.cpp \
     DotsException.cpp \
@@ -23,7 +24,10 @@ SOURCES += main.cpp \
     mainwindow.cpp \
     Trajectory.cpp \
     SpatialTemporalPoint.cpp \
-    SpatialTemporalException.cpp
+    SpatialTemporalException.cpp \
+    RobustnessTester.cpp \
+    SpatialTemporalSegment.cpp \
+    Apps.cpp
 
 HEADERS += \
     DotsException.h \
@@ -33,7 +37,13 @@ HEADERS += \
     mainwindow.h \
     Trajectory.h \
     SpatialTemporalPoint.h \
-    SpatialTemporalException.h
+    SpatialTemporalException.h \
+    RobustnessTester.h \
+    SpatialTemporalSegment.h \
+    birch/CFTree.h \
+    birch/CFTree_Redist.h \
+    birch/CFTree_CFCluster.h \
+    Apps.h
 
 FORMS += \
     mainwindow.ui

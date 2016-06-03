@@ -18,6 +18,7 @@
 #include<QString>
 #include<QVector>
 #include"DotsException.h"
+#include <QtMath>
 
 /**
  * @brief The DotsSimplifier class implements the trajectory simplification algorithm DOTS.
@@ -79,6 +80,18 @@ public:
         // Update internal data.
         if (ptIndex.count() == 1)
         {
+            if (qAbs(t) > 3600*24*365)
+            {
+                DotsException("The first timestamp seems so big that DOTS would potentially fail "\
+                              "due to numerical errors. Would you please consider normalizing the "\
+                              "input data properly first?").raise();
+            }
+            if (qAbs(x) > 2000*1000 || qAbs(y) > 2000*1000)
+            {
+                DotsException("The first position seems so big that DOTS would potentially fail "\
+                              "due to numerical errors. Would you please consider normalizing the "\
+                              "input data properly first?").raise();
+            }
             xSum.append(x);
             ySum.append(y);
             tSum.append(t);
@@ -232,6 +245,10 @@ public:
      * @return the maximum LSSD.
      */
     double getMaxLSSD();
+
+    int getInputCount();
+
+    int getOutputCount();
 
     /**
      * @brief batchDots provides a batched simplification utility by invoking the online DOTS simplifier.

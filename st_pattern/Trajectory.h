@@ -9,6 +9,7 @@
 
 #include <QObject>
 #include "SpatialTemporalPoint.h"
+#include "SpatialTemporalSegment.h"
 #include <QVector>
 #include <QString>
 
@@ -16,19 +17,35 @@ class Trajectory : public QObject
 {
     Q_OBJECT
 public:
+    // The constructors.
     explicit Trajectory(QObject *parent = 0);
     Trajectory(const Trajectory &traj);
     Trajectory(QString filePath);
+    Trajectory & operator =(const Trajectory &traj);
 
+    // Interfaces for feeding data.
     void setReferencePoint(const SpatialTemporalPoint &referenceInLL);
     void setPoints(const QVector<double> &longitude, const QVector<double> &latitude,
                    const QVector<double> &timestamp);
-    int count();
+
+    // Interfaces for retrieving trajectory information.
+    int count() const;
+    QVector<SpatialTemporalPoint> getPoints() const;
+    QVector<SpatialTemporalSegment> getSegments() const;
+    QVector<SegmentLocation> getSegmentsAsEuclidPoints() const;
+    double getStartTime() const;
+    SpatialTemporalPoint estimateReferencePoint() const;
+
+    // Refactor the trajectory.
     void doMercatorProject();
     SpatialTemporalPoint doMercatorProject(const SpatialTemporalPoint& p);
     void doNormalize();
-    Trajectory simplify(double threshold);
-    void visualize(Qt::GlobalColor color = Qt::red, QString curveName = QString(""));
+    Trajectory sample(int rate) const;
+    Trajectory simplify(double threshold, bool useCascade = false) const;
+    Trajectory slice(const QVector<int> &indices) const;
+
+    // The visualization.
+    void visualize(Qt::GlobalColor color = Qt::red, QString curveName = QString("")) const;
 
 public:
     enum CoordinateType {
@@ -45,7 +62,8 @@ signals:
 public slots:
 
 protected:
-    double getMercatorScaleFactor();
+    // Used to estimate the mercator scale factor from the reference point.
+    double getMercatorScaleFactor() const;
 
 protected:
     SpatialTemporalPoint referencePointInLL;

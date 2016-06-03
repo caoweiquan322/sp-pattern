@@ -51,6 +51,16 @@ Trajectory::Trajectory(QString filePath)
     this->setPoints(longitude, latitude, timestamp);
 }
 
+Trajectory &Trajectory::operator =(const Trajectory &traj)
+{
+    this->referencePointInLL = traj.referencePointInLL;
+    this->referencePointInXY = traj.referencePointInXY;
+    this->points = traj.points;
+    this->coordinateType = traj.coordinateType;
+    this->normalized = traj.normalized;
+    return *this;
+}
+
 void Trajectory::setReferencePoint(const SpatialTemporalPoint &referenceInLL)
 {
     this->referencePointInLL = referenceInLL;
@@ -67,9 +77,51 @@ void Trajectory::setPoints(const QVector<double> &longitude, const QVector<doubl
     this->coordinateType = Trajectory::LongitudeLatitude;
 }
 
-int Trajectory::count()
+int Trajectory::count() const
 {
     return points.count();
+}
+
+QVector<SpatialTemporalPoint> Trajectory::getPoints() const
+{
+    return points;
+}
+
+QVector<SpatialTemporalSegment> Trajectory::getSegments() const
+{
+    QVector<SpatialTemporalSegment> segments;
+    for (int i=0; i<count()-1; ++i) {
+        segments.append(SpatialTemporalSegment(points.at(i), points.at(i+1)));
+    }
+    return segments;
+}
+
+QVector<SegmentLocation> Trajectory::getSegmentsAsEuclidPoints() const
+{
+    QVector<SegmentLocation> segmentsAsEuclidPoints;
+    QVector<SpatialTemporalSegment> segments = getSegments();
+    foreach (SpatialTemporalSegment s, segments) {
+        segmentsAsEuclidPoints.append(s.toEuclidPoint());
+    }
+    return segmentsAsEuclidPoints;
+}
+
+double Trajectory::getStartTime() const
+{
+    if (count() == 0)
+        return 0;
+    else
+        return points.at(0).t;
+}
+
+SpatialTemporalPoint Trajectory::estimateReferencePoint() const
+{
+    double xSum = 0, ySum = 0;
+    foreach (SpatialTemporalPoint p, points) {
+        xSum += p.x;
+        ySum += p.y;
+    }
+    return SpatialTemporalPoint(xSum/count(), ySum/count(), getStartTime());
 }
 
 void Trajectory::doMercatorProject()
@@ -114,7 +166,19 @@ void Trajectory::doNormalize()
     this->normalized = true;
 }
 
-Trajectory Trajectory::simplify(double threshold)
+Trajectory Trajectory::sample(int rate) const
+{
+    Helper::checkPositive("sample rate", rate);
+    QVector<SpatialTemporalPoint> _pts;
+    for (int i=0; i<count(); i+=rate) {
+        _pts.append(points.at(i));
+    }
+    Trajectory sampled(*this);
+    sampled.points = _pts;
+    return sampled;
+}
+
+Trajectory Trajectory::simplify(double threshold, bool useCascade) const
 {
     QVector<double> _x, _y, _t;
     foreach (SpatialTemporalPoint p, points) {
@@ -124,13 +188,23 @@ Trajectory Trajectory::simplify(double threshold)
     }
 
     QVector<int> indices;
-    DotsSimplifier::batchDotsCascadeByIndex(_x, _y, _t, indices, threshold);
+    if (useCascade) {
+        DotsSimplifier::batchDotsCascadeByIndex(_x, _y, _t, indices, threshold);
+    } else {
+        DotsSimplifier::batchDotsByIndex(_x, _y, _t, indices, threshold);
+    }
+
+    return slice(indices);
+}
+
+Trajectory Trajectory::slice(const QVector<int> &indices) const
+{
     Trajectory traj(*this);
     Helper::slice<SpatialTemporalPoint>(this->points, indices, traj.points);
     return traj;
 }
 
-void Trajectory::visualize(Qt::GlobalColor color, QString curveName)
+void Trajectory::visualize(Qt::GlobalColor color, QString curveName) const
 {
     MainWindow *figure = new MainWindow();
     QVector<double> _x, _y;
@@ -142,7 +216,7 @@ void Trajectory::visualize(Qt::GlobalColor color, QString curveName)
     figure->show();
 }
 
-double Trajectory::getMercatorScaleFactor()
+double Trajectory::getMercatorScaleFactor() const
 {
     double sf = 1.0/qCos(qDegreesToRadians(this->referencePointInLL.y));
     return qRound(sf/SCALE_FACTOR_PRECISION)*SCALE_FACTOR_PRECISION;

@@ -9,6 +9,7 @@
 #include"DotsException.h"
 #include<QVector>
 #include<QtMath>
+#include <QDebug>
 
 DotsSimplifier::DotsSimplifier(QObject *parent, DotsSimplifier *cascadeRoot) : QObject(parent)
 {
@@ -122,6 +123,16 @@ double DotsSimplifier::getMaxLSSD()
     return ret;
 }
 
+int DotsSimplifier::getInputCount()
+{
+    return inputCount;
+}
+
+int DotsSimplifier::getOutputCount()
+{
+    return outputCount;
+}
+
 void DotsSimplifier::batchDots(const QVector<double> &x, const QVector<double> &y, const QVector<double> &t,
                                QVector<double> &ox, QVector<double> &oy, QVector<double> &ot,
                                double lssdThreshold)
@@ -167,8 +178,8 @@ void DotsSimplifier::batchDotsByIndex(const QVector<double> &x, const QVector<do
 //        qDebug("Input: %4d, output: %4d (%4d), Delay: %3d", pointCount, simplifier.getSimplifiedIndex(ox.count()-1)+1,
 //               ox.count(), pointCount-1-simplifier.getSimplifiedIndex(ox.count()-1));
     }
-//    qDebug("Average SED of the simplified trajectory is %.3f meters.", simplifier.getAverageSED());
-    //    qDebug("Maximum LSSD is %.3f", simplifier.getMaxLSSD());
+//    qDebug("Average SED of the simplified trajectory is %.8f meters.", simplifier.getAverageSED());
+//    qDebug("Maximum LSSD is %.8f", simplifier.getMaxLSSD());
 }
 
 void DotsSimplifier::batchDotsCascade(const QVector<double> &x, const QVector<double> &y, const QVector<double> &t,
