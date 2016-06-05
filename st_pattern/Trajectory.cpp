@@ -43,7 +43,8 @@ Trajectory::Trajectory(QString filePath)
         // GeoLife dataset.
         Helper::parseGeoLife(filePath, longitude, latitude, timestamp, false, false);
     } else {
-        SpatialTemporalException(QString("Unrecognized file type: [%1]").arg(filePath)).raise();
+        SpatialTemporalException(QString("Unrecognized file type: [%1]").
+                                 arg(filePath)).raise();
     }
     // Copy the points
     this->coordinateType = Trajectory::LongitudeLatitude;
@@ -72,6 +73,7 @@ void Trajectory::setPoints(const QVector<double> &longitude, const QVector<doubl
 {
     Helper::checkIntEqual(longitude.count(), latitude.count());
     Helper::checkIntEqual(latitude.count(), timestamp.count());
+
     for (int i=0; i<longitude.count(); ++i)
         this->points.append(SpatialTemporalPoint(longitude.at(i), latitude.at(i), timestamp.at(i)));
     this->coordinateType = Trajectory::LongitudeLatitude;
@@ -131,6 +133,9 @@ double Trajectory::getStartTime() const
 
 SpatialTemporalPoint Trajectory::estimateReferencePoint() const
 {
+    if (count() == 0)
+        SpatialTemporalException("The trajectory contains no points.").raise();
+
     double xSum = 0, ySum = 0;
     foreach (SpatialTemporalPoint p, points) {
         xSum += p.x;
@@ -159,6 +164,8 @@ void Trajectory::doMercatorProject()
 
 SpatialTemporalPoint Trajectory::doMercatorProject(const SpatialTemporalPoint &p)
 {
+    Helper::checkIntEqual(this->coordinateType, Trajectory::LongitudeLatitude);
+
     double sf = getMercatorScaleFactor();
     double finalFactor = EARCH_RADIUS/sf;
     SpatialTemporalPoint ret;
@@ -172,6 +179,9 @@ SpatialTemporalPoint Trajectory::doMercatorProject(const SpatialTemporalPoint &p
 
 void Trajectory::doNormalize()
 {
+    if (normalized)
+        SpatialTemporalException("The trajectory has already been normalized.").raise();
+
     SpatialTemporalPoint reference = this->coordinateType == Trajectory::LongitudeLatitude ?
                 this->referencePointInLL : this->referencePointInXY;
     for (int i=0; i<this->points.count(); ++i)
@@ -195,11 +205,17 @@ Trajectory Trajectory::sample(int rate) const
 
 Trajectory Trajectory::simplify(double threshold, bool useCascade) const
 {
+    if (!normalized)
+        SpatialTemporalException("The trajectory has not been normalized yet.").raise();
+    if (count() == 0)
+        SpatialTemporalException("The trajectory contains no points.").raise();
+
     QVector<double> _x, _y, _t;
+    double refT = points.at(0).t;
     foreach (SpatialTemporalPoint p, points) {
         _x.append(p.x);
         _y.append(p.y);
-        _t.append(p.t);
+        _t.append(p.t - refT);
     }
 
     QVector<int> indices;

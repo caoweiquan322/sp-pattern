@@ -2,6 +2,7 @@
 
 #include "Apps.h"
 #include "SpatialTemporalException.h"
+#include "DotsException.h"
 #include "birch/CFTree.h"
 #include "mainwindow.h"
 #include "Trajectory.h"
@@ -27,9 +28,9 @@ void Apps::segmentTrajectories(const QString &fileDir, const QString &suffix,
 {
     // Retrieve all the files.
     QStringList files = Helper::retrieveFilesWithSuffix(fileDir, suffix);
+    qDebug()<<"The folder "<<fileDir<<" contains "<<files.count()<<" trajectory file(s).";
     if (files.isEmpty())
     {
-        qDebug()<<"The folder "<<fileDir<<" contains no trajectory files.";
         return;
     }
 
@@ -42,11 +43,31 @@ void Apps::segmentTrajectories(const QString &fileDir, const QString &suffix,
     } catch (SpatialTemporalException &e) {
         qDebug()<<"Error occurs while estimating reference point. Details:\n"<<e.getMessage();
         return;
+    } catch (...) {
+        qDebug()<<"Unknown error occurs while estimating reference point.";
     }
 
+    // Do segmentation.
     foreach (QString file, files) {
-        Trajectory traj(file);
-        traj.validate();
+        try {
+            Trajectory traj(file);
+            traj.validate();
+            traj.setReferencePoint(reference);
+            traj.doMercatorProject();
+            traj.doNormalize();
+            traj = traj.simplify(5e6);
+            traj.visualize(Qt::green, file);
+            QVector<SegmentLocation> segments = traj.getSegmentsAsEuclidPoints();
+            qDebug()<<"Trajectory "<<file<<" contains "<<segments.count()<<" segments";
+        } catch (SpatialTemporalException &e) {
+            qDebug()<<"Error occurs while segmenting trajectory: "<<file<<"\nDetails: "
+                   << e.getMessage();
+        } catch (DotsException &e) {
+            qDebug()<<"Error occurs while simplifying trajectory: "<<file<<"\nDetails: "
+                   <<e.getMessage();
+        } catch (...) {
+            qDebug()<<"Unknown error occurs while segmenting trajectory: "<<file;
+        }
     }
 }
 

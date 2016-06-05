@@ -21,8 +21,8 @@ public:
     SegmentLocation(const SegmentLocation &other) {
         this->x = other.x;
         this->y = other.y;
-        this->theta = other.theta;
-        this->scale = other.scale;
+        this->rx = other.rx;
+        this->ry = other.ry;
         this->start = other.start;
         this->duration = other.duration;
     }
@@ -31,26 +31,19 @@ public:
         double err = 0;
         err += (this->x - other.x)*(this->x - other.x)*(weightSquare.x);
         err += (this->y - other.y)*(this->y - other.y)*(weightSquare.y);
-        err += (this->scale - other.scale)*(this->scale - other.scale)*(weightSquare.scale);
+        err += (this->rx - other.rx)*(this->rx - other.rx)*(weightSquare.rx);
+        err += (this->ry - other.ry)*(this->ry - other.ry)*(weightSquare.ry);
         err += (this->start - other.start)*(this->start - other.start)*(weightSquare.start);
         err += (this->duration - other.duration)*(this->duration - other.duration)*(weightSquare.duration);
-        double diffTheta = this->theta - other.theta;
-        while (diffTheta > M_PI) {
-            diffTheta -= M_PI*2.0;
-        }
-        while (diffTheta < -M_PI) {
-            diffTheta += M_PI*2.0;
-        }
-        err += diffTheta*diffTheta*weightSquare.theta;
         return qSqrt(err);
     }
 
-    double x;
-    double y;
-    double theta;
-    double scale;
-    double start;
-    double duration;
+    double x;       // The position x of the start point.
+    double y;       // The position y of the start point.
+    double rx;      // The relative position x of the end point.
+    double ry;      // The relative position y of the end point.
+    double start;   // The timestamp of the start point.
+    double duration;// The duration of the segment.
 };
 
 

@@ -37,10 +37,8 @@ SegmentLocation SpatialTemporalSegment::toEuclidPoint()
     SegmentLocation location;
     location.x = (start.x + end.x)/2.0;
     location.y = (start.y + end.y)/2.0;
-    double diffX = end.x - start.x;
-    double diffY = end.y - start.y;
-    location.theta = atan2(diffY, diffX);
-    location.scale = qSqrt(diffX*diffX + diffY*diffY);
+    location.rx = end.x - start.x;
+    location.ry = end.y - start.y;
     location.start = start.t;
     location.duration = end.t - start.t;
 

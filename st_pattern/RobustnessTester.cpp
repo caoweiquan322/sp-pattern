@@ -237,8 +237,8 @@ void RobustnessTester::compareSegmentationResults(QVector<SegmentationResult> re
 //    weightSquare.duration = 0.0;
     weightSquare.x = 0;
     weightSquare.y = 0;
-    weightSquare.theta = 0;
-    weightSquare.scale = 0;
+    weightSquare.rx = 0;
+    weightSquare.ry = 0;
     weightSquare.start = 1.0;
     weightSquare.duration = 1.0;
     double ZERO = 0.0;
