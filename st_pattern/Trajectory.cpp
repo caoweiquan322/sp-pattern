@@ -77,6 +77,21 @@ void Trajectory::setPoints(const QVector<double> &longitude, const QVector<doubl
     this->coordinateType = Trajectory::LongitudeLatitude;
 }
 
+void Trajectory::validate()
+{
+    double lastTime = -Helper::INF;
+    int numChecked = 0;
+    foreach (SpatialTemporalPoint p, points) {
+        if (p.t < lastTime)
+            SpatialTemporalException(QString("Trajectory::validate() failed while checking index %1. "\
+                                             "Details: Expecting %2 < %3").
+                                     arg(numChecked).arg(lastTime).arg(p.t)).raise();
+        lastTime = p.t;
+        ++numChecked;
+    }
+    // All checking done.
+}
+
 int Trajectory::count() const
 {
     return points.count();

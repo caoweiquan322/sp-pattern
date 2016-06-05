@@ -8,8 +8,10 @@
 #define HELPER_H
 
 #include <QObject>
-#include<QVector>
-#include<QtMath>
+#include <QVector>
+#include <QtMath>
+#include <QString>
+#include <QStringList>
 
 /**
  * @brief The Helper class provides some utilities for the package. E.g. parameter checking, logging, etc.
@@ -216,6 +218,9 @@ public:
         return copy.at(copy.count()/2);
     }
 
+    static QStringList retrieveFilesWithSuffix(const QString &dirPath, const QString &suffix,
+                                               const QStringList &currentList = QStringList());
+
 protected:
     /**
      * @brief MOPSI_DATETIME_FORMAT represents the datetime format of MOPSI dataset.
@@ -227,6 +232,7 @@ protected:
      */
     static const double SCALE_FACTOR_PRECISION;
 
+public:
     static const double ZERO;
     static const double INF;
 

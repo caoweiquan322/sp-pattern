@@ -16,10 +16,11 @@ int main(int argc, char *argv[])
     QApplication a(argc, argv);
 
     try {
-        Apps::testSegmentation();
+        //Apps::segmentTrajectories("/Users/fatty/Code/Matlab/oritxt", ".txt", "segments.dat");
+        Apps::segmentTrajectories("/Users/fatty/Code/st-pattern/test_files", ".txt", "segments.dat");
 
         qDebug("\nPress any key to continue ...");
-        return a.exec();
+        return 0;//a.exec();
     } catch (DotsException &e) {
         qDebug()<<"Error occurs during running DOTS algorithm: "<<e.getMessage();
         //e.raise();

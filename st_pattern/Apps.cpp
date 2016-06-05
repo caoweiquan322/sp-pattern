@@ -4,14 +4,13 @@
 #include "SpatialTemporalException.h"
 #include "birch/CFTree.h"
 #include "mainwindow.h"
-#include <QDir>
-#include <QFileInfoList>
-#include <QFileInfo>
 #include "Trajectory.h"
+#include "SpatialTemporalPoint.h"
 #include <QException>
 #include <vector>
 #include <QDebug>
 #include "RobustnessTester.h"
+#include "Helper.h"
 
 Apps::Apps()
 {
@@ -23,30 +22,32 @@ Apps::~Apps()
 
 }
 
-QStringList retrieveFilesWithSuffix(QString dirPath, QString suffix,
-                                    QStringList currentList)
+void Apps::segmentTrajectories(const QString &fileDir, const QString &suffix,
+                               const QString &outputFile)
 {
-    try {
-        QDir dir(dirPath);
-        QFileInfoList files = dir.entryInfoList(QDir::Dirs | QDir::Files);
-        foreach (QFileInfo info, files) {
-            if (info.isDir() && info.fileName().compare(".") && info.fileName().compare("..")) {
-                //qDebug()<<"Processing folder: "<<info.fileName();
-                currentList = retrieveFilesWithSuffix(info.absoluteFilePath(), suffix, currentList);
-            } else if (info.isFile() && info.fileName().endsWith(suffix)) {
-                //qDebug()<<"Adding file: "<<info.absoluteFilePath();
-                currentList.append(info.absoluteFilePath());
-            }
-        }
-        return currentList;
-    } catch (QException &) {
-        return currentList;
+    // Retrieve all the files.
+    QStringList files = Helper::retrieveFilesWithSuffix(fileDir, suffix);
+    if (files.isEmpty())
+    {
+        qDebug()<<"The folder "<<fileDir<<" contains no trajectory files.";
+        return;
     }
-}
 
-void Apps::segmentTrajectories(const QString &fileDir, const QString &outputFile)
-{
-    SpatialTemporalException("Apps::segmentTrajectories() is not implemented yet.").raise();
+    // Retrieve one file to estimate the reference point.
+    SpatialTemporalPoint reference;
+    try {
+        Trajectory ref(files.first());
+        ref.validate();
+        reference = ref.estimateReferencePoint();
+    } catch (SpatialTemporalException &e) {
+        qDebug()<<"Error occurs while estimating reference point. Details:\n"<<e.getMessage();
+        return;
+    }
+
+    foreach (QString file, files) {
+        Trajectory traj(file);
+        traj.validate();
+    }
 }
 
 void Apps::testSegmentation()

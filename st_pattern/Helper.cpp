@@ -6,11 +6,14 @@
 
 #include "Helper.h"
 #include "DotsException.h"
-#include<QString>
-#include<QFile>
-#include<QDateTime>
-#include<QVector>
-#include<QtMath>
+#include <QString>
+#include <QFile>
+#include <QDateTime>
+#include <QVector>
+#include <QtMath>
+#include <QDir>
+#include <QFileInfoList>
+#include <QFileInfo>
 
 const QString Helper::MOPSI_DATETIME_FORMAT("yyyy-MM-ddHH:mm:ss");
 const double Helper::SCALE_FACTOR_PRECISION = 1e-4;
@@ -257,5 +260,27 @@ void Helper::normalizeData(QVector<double> &x, bool byMean)
     for (int i=0; i<x.count(); ++i)
     {
         x[i] = x[i]-cal;
+    }
+}
+
+QStringList Helper::retrieveFilesWithSuffix(const QString &dirPath, const QString &suffix,
+                                            const QStringList &currentList)
+{
+    QStringList newList = currentList;
+    try {
+        QDir dir(dirPath);
+        QFileInfoList files = dir.entryInfoList(QDir::Dirs | QDir::Files);
+        foreach (QFileInfo info, files) {
+            if (info.isDir() && info.fileName().compare(".") && info.fileName().compare("..")) {
+                //qDebug()<<"Processing folder: "<<info.fileName();
+                newList = retrieveFilesWithSuffix(info.absoluteFilePath(), suffix, newList);
+            } else if (info.isFile() && info.fileName().endsWith(suffix)) {
+                //qDebug()<<"Adding file: "<<info.absoluteFilePath();
+                newList.append(info.absoluteFilePath());
+            }
+        }
+        return newList;
+    } catch (...) {
+        return newList;
     }
 }

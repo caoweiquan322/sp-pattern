@@ -5,7 +5,6 @@
 
 #include <QString>
 #include <QVector>
-#include <QStringList>
 #include "birch/CFTree.h"
 #include <algorithm>
 
@@ -29,14 +28,16 @@ struct ItemND
 
 class Apps
 {
-public:
+protected:
+    // Prevent the Apps from being instanced.
     Apps();
     ~Apps();
 
+public:
+
     // The segmentation phase.
-    static QStringList retrieveFilesWithSuffix(QString dirPath, QString suffix,
-                                               QStringList currentList = QStringList());
-    static void segmentTrajectories(const QString& fileDir, const QString &outputFile);
+    static void segmentTrajectories(const QString& fileDir, const QString &suffix,
+                                    const QString &outputFile);
     static void testSegmentation();
 
     // The clustering phase.

@@ -28,6 +28,9 @@ public:
     void setPoints(const QVector<double> &longitude, const QVector<double> &latitude,
                    const QVector<double> &timestamp);
 
+    // Validation.
+    void validate();
+
     // Interfaces for retrieving trajectory information.
     int count() const;
     QVector<SpatialTemporalPoint> getPoints() const;
