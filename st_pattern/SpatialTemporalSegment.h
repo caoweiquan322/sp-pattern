@@ -9,6 +9,7 @@
 
 #include "SpatialTemporalPoint.h"
 #include <QtMath>
+#include <QDataStream>
 
 typedef class SegmentLocation SegmentWeight;
 
@@ -16,6 +17,12 @@ class SegmentLocation
 {
 public:
     SegmentLocation() {
+        this->id = 0;
+        // This should not be invoked however.
+    }
+
+    SegmentLocation(unsigned int _id) {
+        this->id = _id;
         // Yield.
     }
     SegmentLocation(const SegmentLocation &other) {
@@ -25,6 +32,7 @@ public:
         this->ry = other.ry;
         this->start = other.start;
         this->duration = other.duration;
+        this->id = other.id;
     }
     // Calculate the difference.
     double distance(const SegmentLocation &other, const SegmentWeight &weightSquare) {
@@ -44,7 +52,11 @@ public:
     double ry;      // The relative position y of the end point.
     double start;   // The timestamp of the start point.
     double duration;// The duration of the segment.
+    unsigned int id;// The unique identifier of this segment.
 };
+
+QDataStream & operator<< (QDataStream& stream, const SegmentLocation& l);
+QDataStream & operator>> (QDataStream& stream, SegmentLocation& l);
 
 
 class SpatialTemporalSegment
@@ -63,6 +75,11 @@ public:
 protected:
     SpatialTemporalPoint start;
     SpatialTemporalPoint end;
+    unsigned int id;
+
+protected:
+    // The id counter.
+    static unsigned int idCounter;
 };
 
 #endif // SPATIALTEMPORALSEGMENT_H

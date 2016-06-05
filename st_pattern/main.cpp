@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
     try {
         qDebug()<<"\n============> The st-pattern begins <============";
         //Apps::segmentTrajectories("/Users/fatty/Code/Matlab/oritxt", ".txt", "segments.dat");
-        Apps::segmentTrajectories("/Users/fatty/Code/st-pattern/test_files", ".txt", "segments.dat");
+        Apps::segmentTrajectories("/Users/fatty/Code/st-pattern/test_files", ".txt", "statistics");
 
         qDebug()<<"\n============>  The st-pattern ends  <============";
         qDebug("\nPress any key to continue ...");

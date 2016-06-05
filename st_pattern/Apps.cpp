@@ -12,6 +12,8 @@
 #include <QDebug>
 #include "RobustnessTester.h"
 #include "Helper.h"
+#include <QFile>
+#include <QDataStream>
 
 Apps::Apps()
 {
@@ -48,6 +50,16 @@ void Apps::segmentTrajectories(const QString &fileDir, const QString &suffix,
     }
 
     // Do segmentation.
+    QFile segFile(outputFile + ".seg"), trajFile(outputFile + ".traj");
+    if (!segFile.open(QIODevice::WriteOnly)) {
+        SpatialTemporalException(QString("Open file %1 error.").arg(segFile.fileName())).raise();
+    }
+    QDataStream segOut(&segFile);
+    if (!trajFile.open(QIODevice::WriteOnly)) {
+        segFile.close();
+        SpatialTemporalException(QString("Open file %1 error.").arg(trajFile.fileName())).raise();
+    }
+    QDataStream trajOut(&trajFile);
     foreach (QString file, files) {
         try {
             Trajectory traj(file);
@@ -56,9 +68,15 @@ void Apps::segmentTrajectories(const QString &fileDir, const QString &suffix,
             traj.doMercatorProject();
             traj.doNormalize();
             traj = traj.simplify(5e6);
-            traj.visualize(Qt::green, file);
             QVector<SegmentLocation> segments = traj.getSegmentsAsEuclidPoints();
             qDebug()<<"Trajectory "<<file<<" contains "<<segments.count()<<" segments";
+
+            // Serialize the trajectory and its segments.
+            trajOut<<segments.count();
+            foreach (SegmentLocation l, segments) {
+                segOut<<l;
+                trajOut<<l.id;
+            }
         } catch (SpatialTemporalException &e) {
             qDebug()<<"Error occurs while segmenting trajectory: "<<file<<"\nDetails: "
                    << e.getMessage();
@@ -69,6 +87,8 @@ void Apps::segmentTrajectories(const QString &fileDir, const QString &suffix,
             qDebug()<<"Unknown error occurs while segmenting trajectory: "<<file;
         }
     }
+    segFile.close();
+    trajFile.close();
 }
 
 void Apps::testSegmentation()
