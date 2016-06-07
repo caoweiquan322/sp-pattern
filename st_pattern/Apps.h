@@ -7,6 +7,8 @@
 #include <QVector>
 #include "birch/CFTree.h"
 #include <algorithm>
+#include "SpatialTemporalSegment.h"
+#include <QHash>
 
 // The CF tree of specified dimension.
 typedef CFTree<2> CFTreeND;
@@ -46,6 +48,21 @@ public:
     static QVector<ItemND> random(ItemND _inf, ItemND _sup,
                                   int num);
     static void testCluster();
+
+    // The SCPM mining phase.
+    static void scpm(const QString &clusterFileName, const QString &tincFileName,
+                     const QString &outputFileName, double continuityRadius, int minSup);
+    static void prefixSpan(const QVector<unsigned int> &currPrefix,
+                           const QVector<QVector<unsigned int> > &projs,
+                           const QVector<int> &projsFrom,
+                           const QHash<unsigned int, QVector<unsigned int> > scMap,
+                           QVector<QVector<unsigned int> > &allPatterns,
+                           int minSup);
+    static void testPrefixSpan();
+    static QVector<SegmentLocation> retrieveClusters(const QString &clusterFileName);
+    static QHash<unsigned int, QVector<unsigned int> > getSpatialContinuityMap(
+            const QVector<SegmentLocation> &clusters, double continuityRadius);
+    static QVector<QVector<unsigned int> > retrieveTinC(const QString &tincFileName);
 };
 
 #endif // APPS_H

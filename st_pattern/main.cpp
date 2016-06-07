@@ -16,9 +16,12 @@ int main(int argc, char *argv[])
     QApplication a(argc, argv);
 
     try {
+        Apps::testPrefixSpan();
+        return 0;
         qDebug()<<"\n============> The st-pattern begins <============";
         //Apps::segmentTrajectories("/Users/fatty/Code/Matlab/oritxt", ".txt", "segments.dat");
-        Apps::segmentTrajectories("/Users/fatty/Code/st-pattern/test_files", ".txt", "statistics");
+        //Apps::segmentTrajectories("/Users/fatty/Code/st-pattern/test_files", ".txt", "statistics");
+        Apps::testCluster();
 
         qDebug()<<"\n============>  The st-pattern ends  <============";
         qDebug("\nPress any key to continue ...");

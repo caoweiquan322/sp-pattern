@@ -160,6 +160,10 @@ void Apps::testCluster()
     CFTreeND::cfentry_vec_type entries;
     tree.cluster(entries);
     qDebug()<<"Number of entries: "<<entries.size();
+    for (std::size_t i = 0; i<entries.size(); ++i) {
+        qDebug()<<"Entry "<<i<<": "<<entries[i].sum[0]/entries[i].n<<", "<<entries[i].sum[1]/entries[i].n;
+        qDebug()<<"Size is: "<<entries[i].n;
+    }
 
     // phase 4: redistribution
     // @comment ts - it is also possible to another clustering algorithm hereafter
@@ -187,5 +191,192 @@ void Apps::testCluster()
         figure->plot(_x, _y, colors.at(i % colors.count()), "");
     }
     figure->show();
+}
+
+void Apps::scpm(const QString &clusterFileName, const QString &tincFileName,
+                const QString &outputFileName, double continuityRadius, int minSup)
+{
+    QVector<SegmentLocation> clusters = retrieveClusters(clusterFileName);
+    QHash<unsigned int, QVector<unsigned int> > scMap =
+            getSpatialContinuityMap(clusters, continuityRadius);
+    QVector<QVector<unsigned int> > tinc = retrieveTinC(tincFileName);
+    QVector<QVector<unsigned int> > allPatterns;
+    QVector<int> projsFrom;
+    for (int i=0; i<tinc.count(); ++i)
+        projsFrom<<0;
+    prefixSpan(QVector<unsigned int>(),
+               tinc,
+               projsFrom,
+               scMap,
+               allPatterns,
+               minSup);
+}
+
+void Apps::prefixSpan(const QVector<unsigned int> &currPrefix,
+                      const QVector<QVector<unsigned int> > &projs,
+                      const QVector<int> &projsFrom,
+                      const QHash<unsigned int, QVector<unsigned int> > scMap,
+                      QVector<QVector<unsigned int> > &allPatterns,
+                      int minSup)
+{
+    if (projs.count() < minSup)
+        return;
+    // Specify items to check.
+    QVector<unsigned int> toCheck;
+    if (currPrefix.isEmpty()) {
+        toCheck = scMap.keys().toVector();
+    } else {
+        toCheck = scMap[currPrefix.last()];
+    }
+    qDebug()<<"Prefix: "<<currPrefix<<", tocheck: "<<toCheck;
+    if (toCheck.isEmpty())
+        return;
+    qDebug()<<"Prefix: "<<currPrefix<<", tocheck: "<<toCheck;
+    // Find frequent items from projections.
+    QVector<unsigned int> freq;
+    foreach (unsigned int c, toCheck) {
+        int counter = 0;
+        for (int i=0; i<projs.count(); ++i) {
+            if (projs[i].indexOf(c, projsFrom[i]) >= 0)
+                ++counter;
+        }
+        if (counter >= minSup)
+            freq << c;
+    }
+    if (freq.isEmpty())
+        return;
+    qDebug()<<"Prefix: "<<currPrefix<<", freq: "<<freq;
+    // Store patterns and invoke PrefixSpan recursively.
+    foreach (unsigned int c, freq) {
+        QVector<unsigned int> newPrefix = currPrefix;
+        newPrefix.append(c);
+        allPatterns <<  newPrefix;
+        QVector<QVector<unsigned int> > newProjs;
+        QVector<int> newProjsFrom;
+        for (int i=0; i<projs.count(); ++i) {
+            int idx = projs[i].indexOf(c, projsFrom[i]);
+            if (idx >= 0 && idx < projs[i].count()-1) {
+                newProjs << projs[i];
+                newProjsFrom << (idx+1);
+            }
+        }
+        qDebug()<<"New projs and new from for"<<c<<" is "<<newProjs<<", "<<newProjsFrom;
+        if (newProjs.count() >= minSup) {
+            prefixSpan(newPrefix, newProjs, newProjsFrom, scMap, allPatterns, minSup);
+        }
+    }
+}
+
+void Apps::testPrefixSpan()
+{
+    // Data preparation.
+    QVector<QVector<unsigned int> > tinc;
+    QVector<unsigned int> t1, t2;
+    t1<<1<<2<<3<<4<<5;
+    t2<<1<<4<<5;
+    tinc<<t1<<t2;
+    qDebug()<<"T1: "<<t1;
+    qDebug()<<"T2: "<<t2;
+    QVector<QVector<unsigned int> > allPatterns;
+    QVector<int> projsFrom;
+    for (int i=0; i<tinc.count(); ++i)
+        projsFrom<<0;
+    QHash<unsigned int, QVector<unsigned int> > scMap;
+    QVector<unsigned int> n1, n2, n3, n4, n5;
+    n1<<2<<3<<4;
+    n2<<3<<4;
+    n3<<4;
+    n4<<5;
+    scMap[1] = n1;
+    scMap[2] = n2;
+    scMap[3] = n3;
+    scMap[4] = n4;
+    scMap[5] = n5;
+    qDebug()<<"Spatial continuity map: "<<scMap;
+
+    // Evaluation.
+    prefixSpan(QVector<unsigned int>(),
+               tinc,
+               projsFrom,
+               scMap,
+               allPatterns,
+               2);
+    qDebug()<<"All patterns are list as below:";
+    foreach (QVector<unsigned int> p, allPatterns) {
+        qDebug()<<p;
+    }
+}
+
+QVector<SegmentLocation> Apps::retrieveClusters(const QString &clusterFileName)
+{
+    // Open file.
+    QFile clusterFile(clusterFileName);
+    if (!clusterFile.open(QIODevice::ReadOnly)) {
+        SpatialTemporalException(QString("Open cluster file %1 error.").arg(clusterFileName)).raise();
+    }
+    QDataStream clusterIn(&clusterFile);
+    QVector<SegmentLocation> clusters;
+    SegmentLocation l;
+    while (!clusterIn.atEnd()) {
+        clusterIn >> l;
+        clusters << l;
+    }
+
+    // Close file.
+    clusterFile.close();
+
+    // Return.
+    return clusters;
+}
+
+QHash<unsigned int, QVector<unsigned int> > Apps::getSpatialContinuityMap(
+        const QVector<SegmentLocation> &clusters, double continuityRadius)
+{
+    QHash<unsigned int, QVector<unsigned int> > scMap;
+    foreach (SegmentLocation l1, clusters) {
+        QVector<unsigned int> nb;
+        foreach (SegmentLocation l2, clusters) {
+            if (l1.id != l2.id) {
+                double diffX = l2.x-l1.x-l1.rx;
+                double diffY = l2.y-l1.y-l1.ry;
+                if (qSqrt(diffX*diffX+diffY*diffY) < continuityRadius)
+                    nb << l2.id;
+            }
+        }
+        scMap[l1.id] = nb;
+    }
+    return scMap;
+}
+
+QVector<QVector<unsigned int> > Apps::retrieveTinC(const QString &tincFileName)
+{
+    // Open file.
+    QFile tincFile(tincFileName);
+    if (!tincFile.open(QIODevice::ReadOnly)) {
+        SpatialTemporalException(QString("Open tinc file %1 error.").arg(tincFileName)).raise();
+    }
+    QDataStream tincIn(&tincFile);
+    QVector<QVector<unsigned int> > tincs;
+    QVector<unsigned int> traj;
+    int numClusters;
+    unsigned int cID;
+    while (!tincIn.atEnd()) {
+        tincIn >> numClusters;
+        while ((--numClusters)>=0 && !tincIn.atEnd()) {
+            tincIn >> cID;
+            traj << cID;
+        }
+        if (numClusters >= 0) {
+            SpatialTemporalException("Malformed tinc file.").raise();
+        }
+        tincs << traj;
+        traj.clear();
+    }
+
+    // Close file.
+    tincFile.close();
+
+    // Return.
+    return tincs;
 }
 
