@@ -44,6 +44,7 @@
 
 #include <QMainWindow>
 #include <QTimer>
+#include <QString>
 #include "qcustomplot/qcustomplot.h" // the header file of QCustomPlot. Don't forget to add it to your project, if you use an IDE, so it gets compiled.
 
 namespace Ui {
@@ -64,9 +65,15 @@ public:
      * @param y the y data.
      * @param style the line style.
      */
-    void plot(QVector<double> x, QVector<double> y, Qt::GlobalColor color = Qt::blue, QString curveName = "");
+    void plot(const QVector<double> &x, const QVector<double> &y,
+              const QString &option = "", const QString &curveName = "");
 
-    void plot(QVector<double> x, Qt::GlobalColor color = Qt::blue, QString curveName = "");
+    void plot(const QVector<double> &x, const QString &option = "", const QString &curveName = "");
+
+    void parsePlotOption(QCPCurve* curve, const QString &option);
+
+    void xRange(double lower, double upper);
+    void yRange(double lower, double upper);
 
   void setupDemo(int demoIndex);
   void setupQuadraticDemo(QCustomPlot *customPlot);

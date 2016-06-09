@@ -29,7 +29,7 @@ public:
                    const QVector<double> &timestamp);
 
     // Validation.
-    void validate();
+    void validate(bool autoFix = true);
 
     // Interfaces for retrieving trajectory information.
     int count() const;
@@ -45,10 +45,11 @@ public:
     void doNormalize();
     Trajectory sample(int rate) const;
     Trajectory simplify(double threshold, bool useCascade = false) const;
+    QVector<Trajectory> simplifyWithSEST(double step, bool useTemporal = true) const;
     Trajectory slice(const QVector<int> &indices) const;
 
     // The visualization.
-    void visualize(Qt::GlobalColor color = Qt::red, QString curveName = QString("")) const;
+    void visualize(const QString &plotOption, QString curveName = QString("")) const;
 
 public:
     enum CoordinateType {
@@ -59,6 +60,8 @@ public:
     static const double MERCATOR_LATITUDE_UB;
     static const double SCALE_FACTOR_PRECISION;
     static const double EARCH_RADIUS;
+    static const double MAX_SPEED; // 130 Km/H.
+    static const double MAX_EXCEED_TO_FIX; // 5%
 
 signals:
 

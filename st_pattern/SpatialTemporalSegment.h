@@ -35,7 +35,7 @@ public:
         this->id = other.id;
     }
     // Calculate the difference.
-    double distance(const SegmentLocation &other, const SegmentWeight &weightSquare) {
+    double distance(const SegmentLocation &other, const SegmentWeight &weightSquare) const {
         double err = 0;
         err += (this->x - other.x)*(this->x - other.x)*(weightSquare.x);
         err += (this->y - other.y)*(this->y - other.y)*(weightSquare.y);
@@ -44,6 +44,10 @@ public:
         err += (this->start - other.start)*(this->start - other.start)*(weightSquare.start);
         err += (this->duration - other.duration)*(this->duration - other.duration)*(weightSquare.duration);
         return qSqrt(err);
+    }
+    // Calculate the segment length.
+    double getLength() const {
+        return qSqrt(rx*rx+ry*ry);
     }
 
     double x;       // The position x of the start point.

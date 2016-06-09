@@ -14,8 +14,9 @@
 #include <QDir>
 #include <QFileInfoList>
 #include <QFileInfo>
+#include <QDebug>
 
-const QString Helper::MOPSI_DATETIME_FORMAT("yyyy-MM-ddHH:mm:ss");
+const QString Helper::MOPSI_DATETIME_FORMAT("yyyy-MM-dd-H:mm:ss");
 const double Helper::SCALE_FACTOR_PRECISION = 1e-4;
 const double Helper::ZERO = 0.0;
 const double Helper::INF = 1.0/Helper::ZERO;
@@ -64,6 +65,7 @@ void Helper::parseMOPSI(QString fileName, QVector<double> &x, QVector<double> &y
         x.clear();
         y.clear();
         t.clear();
+        QByteArray MINUS("-");
         while(!file.atEnd())
         {
             // Read the file line by line.
@@ -79,7 +81,7 @@ void Helper::parseMOPSI(QString fileName, QVector<double> &x, QVector<double> &y
             }
 
             // Store the parsed data without cleaning it.
-            double timestamp = (double)QDateTime::fromString(parts[2]+parts[3], MOPSI_DATETIME_FORMAT).toTime_t();
+            double timestamp = (double)QDateTime::fromString(parts[2]+MINUS+parts[3], MOPSI_DATETIME_FORMAT).toTime_t();
             if (!t.empty() && timestamp-t.last() < 1e-15) // Duplicated time point.
                 continue;
             latitude.append(parts[0].toDouble());
@@ -128,6 +130,7 @@ void Helper::parseGeoLife(QString fileName, QVector<double> &x, QVector<double> 
         y.clear();
         t.clear();
         int numLine = 0;
+        static const double secsPerDay = 24*3600;
         while(!file.atEnd())
         {
             // Read the file line by line.
@@ -146,7 +149,7 @@ void Helper::parseGeoLife(QString fileName, QVector<double> &x, QVector<double> 
             }
 
             // Store the parsed data without cleaning it.
-            double timestamp = parts[4].toDouble();
+            double timestamp = parts[4].toDouble()*secsPerDay;
             if (!t.empty() && timestamp-t.last() < 1e-15) // Duplicated time point.
                 continue;
             latitude.append(parts[0].toDouble());

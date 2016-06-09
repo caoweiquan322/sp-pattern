@@ -34,12 +34,12 @@ double RobustnessTester::testSegmentRobustness(const Trajectory &traj,
     case DOTS:
         traj1 = traj.simplify(para1, false);
         traj2 = traj.simplify(para2, false);
-        traj1.visualize(Qt::green, "Traj1");
+        traj1.visualize("g", "Traj1");
         break;
     case DOTS_CASCADE:
         traj1 = traj.simplify(para1, true);
         traj2 = traj.simplify(para2, true);
-        traj1.visualize(Qt::green, "Traj1");
+        traj1.visualize("g", "Traj1");
         break;
     case DP:
 //        QVector<double> _x, _y, _t;

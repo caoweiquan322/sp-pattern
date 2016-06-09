@@ -8,10 +8,9 @@
 #include "birch/CFTree.h"
 #include <algorithm>
 #include "SpatialTemporalSegment.h"
-#include <QHash>
 
 // The CF tree of specified dimension.
-typedef CFTree<2> CFTreeND;
+typedef CFTree<6> CFTreeND;
 
 struct ItemND
 {
@@ -38,20 +37,37 @@ protected:
 public:
 
     // The segmentation phase.
-    static void segmentTrajectories(const QString& fileDir, const QString &suffix,
-                                    const QString &outputFile);
+    static void segmentTrajectories(const QString &fileDir, const QString &suffix,
+                                    const QString &outputFile,
+                                    double segStep, bool useTemporal, double minLength);
+    static QVector<SegmentLocation> filterSegments(const QVector<SegmentLocation> &segments, double minLength);
     static void testSegmentation();
+
+    // The visualization.
+    static void visualizeDataset(const QString &fileDir, const QString &suffix, double range,
+                                 const QString &patternFile="");
 
     // The clustering phase.
     static void clusterSegments(const QString &segmentsFile, const QVector<double> &weights,
-                                const QString &outputFile);
+                                const QString &outputFile, double thresh, int memoryLim);
     static QVector<ItemND> random(ItemND _inf, ItemND _sup,
                                   int num);
-    static void testCluster();
+    static void testCluster(double thresh, int memoryLim = 0);
+
+    // The translate phase.
+    static void transTrajectories(const QString &tins, const QString &s2c,
+                                  const QString &tinc);
 
     // The SCPM mining phase.
     static void scpm(const QString &clusterFileName, const QString &tincFileName,
-                     const QString &outputFileName, double continuityRadius, int minSup);
+                     const QString &outputFileName, double continuityRadius, int minSup,
+                     int minLen);
+    static void storePatterns(const QVector<QVector<unsigned int> > &allPatterns,
+                              const QVector<SegmentLocation> &clusters,
+                              const QString &patternFileName);
+    static void visualizePatterns(const QVector<QVector<unsigned int> > &allPatterns,
+                                  const QVector<SegmentLocation> &clusters,
+                                  int minLen);
     static void prefixSpan(const QVector<unsigned int> &currPrefix,
                            const QVector<QVector<unsigned int> > &projs,
                            const QVector<int> &projsFrom,
@@ -63,6 +79,14 @@ public:
     static QHash<unsigned int, QVector<unsigned int> > getSpatialContinuityMap(
             const QVector<SegmentLocation> &clusters, double continuityRadius);
     static QVector<QVector<unsigned int> > retrieveTinC(const QString &tincFileName);
+
+public:
+    static const QString tinsSuffix;
+    static const QString segSuffix;
+    static const QString s2cSuffix;
+    static const QString clusterSuffix;
+    static const QString tincSuffix;
+    static const QString patternSuffix;
 };
 
 #endif // APPS_H

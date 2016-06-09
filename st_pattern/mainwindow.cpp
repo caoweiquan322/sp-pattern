@@ -47,6 +47,7 @@
 #include <QMessageBox>
 #include <QMetaEnum>
 #include"Helper.h"
+#include <QMap>
 
 MainWindow::MainWindow(QWidget *parent) :
   QMainWindow(parent),
@@ -1554,23 +1555,20 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::plot(QVector<double> x, QVector<double> y, Qt::GlobalColor color, QString curveName)
+void MainWindow::plot(const QVector<double> &x, const QVector<double> &y,
+                      const QString &option, const QString &curveName)
 {
     QCustomPlot *customPlot = ui->customPlot;
     demoName = "Quadratic Demo";
-    customPlot->legend->setVisible(true);
+    customPlot->legend->setVisible(!curveName.isEmpty());
     customPlot->legend->setFont(QFont("Helvetica", 9));
     // create graph and assign data to it:
     QCPCurve *curve = new QCPCurve(customPlot->xAxis, customPlot->yAxis);
     curve->setName(curveName);
     curve->setData(x, y);
-    curve->setPen(QPen(color));
+    //curve->setPen(QPen(option));
+    parsePlotOption(curve, option);
     customPlot->addPlottable(curve);
-
-//    QCPGraph* graph = customPlot->addGraph();
-//    graph->setLineStyle(QCPGraph::lsLine);
-//    graph->setData(x, y);
-//    graph->setPen(QPen(color));
 
     // give the axes some labels:
     customPlot->xAxis->setLabel("x");
@@ -1579,13 +1577,85 @@ void MainWindow::plot(QVector<double> x, QVector<double> y, Qt::GlobalColor colo
     // set axes ranges, so we see all data:
     customPlot->xAxis->rescale();
     customPlot->yAxis->rescale();
+
     customPlot->replot();
 }
 
-void MainWindow::plot(QVector<double> x, Qt::GlobalColor color, QString curveName)
+void MainWindow::plot(const QVector<double> &x, const QString &option, const QString &curveName)
 {
     QVector<double> t = Helper::range<double>(0, x.count()-1.0+1e-8, 1.0);
-    plot(t, x, color, curveName);
+    plot(t, x, option, curveName);
+}
+
+void MainWindow::parsePlotOption(QCPCurve *curve, const QString &option)
+{
+    // Parse color.
+    QMap<QString, Qt::GlobalColor> n2c;
+    n2c["r"] = Qt::red;
+    n2c["g"] = Qt::green;
+    n2c["b"] = Qt::blue;
+    n2c["c"] = Qt::cyan;
+    n2c["m"] = Qt::magenta;
+    n2c["y"] = Qt::yellow;
+    n2c["k"] = Qt::black;
+    n2c["w"] = Qt::white;
+    Qt::GlobalColor color = Qt::red;
+    foreach (QString name, n2c.keys()) {
+        if (option.contains(name))
+            color = n2c[name];
+    }
+
+    // Parse pen style.
+    QMap<QString, Qt::PenStyle> n2p;
+    n2p["-"] = Qt::SolidLine;
+    n2p[":"] = Qt::DotLine;
+    n2p["-."] = Qt::DashDotLine;
+    n2p["--"] = Qt::DashLine;
+    Qt::PenStyle penStyle = Qt::NoPen;
+    foreach (QString name, n2p.keys()) {
+        if (option.contains(name))
+            penStyle = n2p[name];
+    }
+
+    // Parse scatter.
+    QMap<QString, QCPScatterStyle::ScatterShape> n2s;
+    n2s["."] = QCPScatterStyle::ssDot;
+    n2s["o"] = QCPScatterStyle::ssCircle;
+    n2s["x"] = QCPScatterStyle::ssCross;
+    n2s["+"] = QCPScatterStyle::ssPlus;
+    n2s["s"] = QCPScatterStyle::ssSquare;
+    n2s["d"] = QCPScatterStyle::ssDiamond;
+    n2s["*"] = QCPScatterStyle::ssStar;
+    n2s["^"] = QCPScatterStyle::ssTriangle;
+    n2s["v"] = QCPScatterStyle::ssTriangleInverted;
+    QCPScatterStyle::ScatterShape shape = QCPScatterStyle::ssNone;
+    foreach (QString name, n2s.keys()) {
+        if (option.contains(name))
+            shape = n2s[name];
+    }
+
+    // Decision.
+    if (penStyle == Qt::NoPen) {
+        if (shape != QCPScatterStyle::ssNone)
+            curve->setLineStyle(QCPCurve::lsNone);
+        penStyle = Qt::SolidLine;
+    }
+    QPen pen(QBrush(color), 1, penStyle);
+    curve->setPen(pen);
+    if (shape != QCPScatterStyle::ssNone)
+        curve->setScatterStyle(QCPScatterStyle(shape));
+}
+
+void MainWindow::xRange(double lower, double upper)
+{
+    ui->customPlot->xAxis->setRangeLower(lower);
+    ui->customPlot->xAxis->setRangeUpper(upper);
+}
+
+void MainWindow::yRange(double lower, double upper)
+{
+    ui->customPlot->yAxis->setRangeLower(lower);
+    ui->customPlot->yAxis->setRangeUpper(upper);
 }
 
 void MainWindow::screenShot()

@@ -396,7 +396,7 @@ public:
 			split_root( e );
 		}
 
-		std::size_t curr_mem = node_cnt * sizeof(CFNode);
+        //std::size_t curr_mem = node_cnt * sizeof(CFNode);
 		if( mem_limit > 0 && node_cnt * sizeof(CFNode) > mem_limit )
 		{
 			rebuild();
