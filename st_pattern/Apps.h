@@ -5,9 +5,11 @@
 
 #include <QString>
 #include <QVector>
+#include <QSet>
 #include "birch/CFTree.h"
 #include <algorithm>
 #include "SpatialTemporalSegment.h"
+#include "TrieNode.h"
 
 // The CF tree of specified dimension.
 typedef CFTree<6> CFTreeND;
@@ -79,6 +81,61 @@ public:
     static QHash<unsigned int, QVector<unsigned int> > getSpatialContinuityMap(
             const QVector<SegmentLocation> &clusters, double continuityRadius);
     static QVector<QVector<unsigned int> > retrieveTinC(const QString &tincFileName);
+
+    // Remove SUFFIX/PREFIX pattern.
+    static void testTrie();
+
+    // Return a random order version of the original oldVec.
+    template<typename T>
+    static QVector<T> randomOrder(const QVector<T> &oldVec) {
+        QVector<T> vec = oldVec;
+        for (int i=0; i<vec.count(); ++i) {
+            int r = i+ qrand()%(vec.count()-i);
+            T x = vec[i];
+            vec[i] = vec[r];
+            vec[r] = x;
+        }
+        return vec;
+    }
+
+    // Clean the patterns so that only those that do not belong to others would keep left.
+    template<typename T>
+    static QVector<QVector<T> > cleanShortPatterns(
+            const QVector<QVector<T> > &patterns) {
+        QVector<QVector<T> > nonPrefixPatterns = cleanPrefixPatterns(patterns);
+        QVector<QVector<T> > inversed = inversePatterns(nonPrefixPatterns);
+        inversed = cleanPrefixPatterns(inversed);
+        return inversePatterns(inversed);
+    }
+
+    // Clean the patterns so that those which are prefix of others are totally removed.
+    template<typename T>
+    static QVector<QVector<T> > cleanPrefixPatterns(
+            const QVector<QVector<T> > &patterns) {
+        TrieNode<T> *root = new TrieNode<T>();
+        foreach (QVector<T> pattern, patterns) {
+            root->insert(pattern, 0);
+        }
+        QVector<QVector<T> > newPatterns;
+        root->collectLeaves(newPatterns);
+        delete root;
+
+        return newPatterns;
+    }
+
+    // Inverse each element of the patterns.
+    template<typename T>
+    static QVector<QVector<T> > inversePatterns(
+            const QVector<QVector<T> > &patterns) {
+        QVector<QVector<T> > inversed;
+        foreach (QVector<T> pattern, patterns) {
+            QVector<T> ipattern;
+            for (int i=pattern.count()-1; i>=0; --i)
+                ipattern.append(pattern.at(i));
+            inversed.append(ipattern);
+        }
+        return inversed;
+    }
 
 public:
     static const QString tinsSuffix;

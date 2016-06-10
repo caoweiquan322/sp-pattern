@@ -597,7 +597,8 @@ void Apps::prefixSpan(const QVector<unsigned int> &currPrefix,
     foreach (unsigned int c, freq) {
         QVector<unsigned int> newPrefix = currPrefix;
         newPrefix.append(c);
-        allPatterns <<  newPrefix;
+        //allPatterns <<  newPrefix;
+        int beforePatternsCount = allPatterns.count();
         QVector<QVector<unsigned int> > newProjs;
         QVector<int> newProjsFrom;
         for (int i=0; i<projs.count(); ++i) {
@@ -610,6 +611,11 @@ void Apps::prefixSpan(const QVector<unsigned int> &currPrefix,
         //qDebug()<<"New projs and new from for"<<c<<" is "<<newProjs<<", "<<newProjsFrom;
         if (newProjs.count() >= minSup) {
             prefixSpan(newPrefix, newProjs, newProjsFrom, scMap, allPatterns, minSup);
+        }
+        // Check if this is a leaf node of the prefix-span tree. However we will construct
+        // a (suffix) trie to solve this problem.
+        if (true) {//beforePatternsCount == allPatterns.count()) {
+            allPatterns << newPrefix;
         }
     }
 }
@@ -725,5 +731,35 @@ QVector<QVector<unsigned int> > Apps::retrieveTinC(const QString &tincFileName)
 
     // Return.
     return tincs;
+}
+
+void Apps::testTrie()
+{
+    // Prepare old patterns.
+    QVector<QVector<unsigned int> > oldPatterns;
+    unsigned int from = 1, to = 6;
+    for (unsigned int i=from; i<to; ++i)
+        for (unsigned int j=i; j<to; ++j)
+        {
+            QVector<unsigned int> pattern;
+            for (unsigned int k=i; k<=j; ++k)
+                pattern.append(k);
+            oldPatterns.append(pattern);
+        }
+    oldPatterns = randomOrder(oldPatterns);
+
+    // Show old patterns.
+    foreach (QVector<unsigned int> pattern, oldPatterns) {
+        qDebug()<<pattern;
+    }
+
+    // Clean the patterns.
+    QVector<QVector<unsigned int> > newPatterns = cleanShortPatterns(oldPatterns);
+
+    // Show new patterns.
+    qDebug()<<"New patterns after cleaned:";
+    foreach (QVector<unsigned int> pattern, newPatterns) {
+        qDebug()<<pattern;
+    }
 }
 

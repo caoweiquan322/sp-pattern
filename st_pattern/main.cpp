@@ -86,7 +86,8 @@ int main(int argc, char *argv[])
             //ret = a.exec();
         } else if (args[1].compare("test") == 0 && args.count() == 2) {
             qDebug()<<"\n============> The "<<args[1]<<" begins <============";
-            Apps::testPrefixSpan();
+            //Apps::testPrefixSpan();
+            Apps::testTrie();
             qDebug()<<"\n============>  The "<<args[1]<<" ends  <============";
         } else {
             qDebug()<<"Malformed command "<<args[1];

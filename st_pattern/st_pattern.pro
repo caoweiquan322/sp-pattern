@@ -43,7 +43,8 @@ HEADERS += \
     birch/CFTree.h \
     birch/CFTree_Redist.h \
     birch/CFTree_CFCluster.h \
-    Apps.h
+    Apps.h \
+    TrieNode.h
 
 FORMS += \
     mainwindow.ui
