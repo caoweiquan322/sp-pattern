@@ -498,6 +498,24 @@ void Apps::scpm(const QString &clusterFileName, const QString &tincFileName,
     QHash<unsigned int, QVector<unsigned int> > scMap =
             getSpatialContinuityMap(clusters, continuityRadius);
     QVector<QVector<unsigned int> > tinc = retrieveTinC(tincFileName + tincSuffix);
+    {
+        // To remove. Visualize tinc.
+        foreach (QVector<unsigned int> t, tinc) {
+            MainWindow *figure = new MainWindow();
+            QVector<double> _x, _y;
+            foreach (unsigned int idx, t) {
+                SegmentLocation l = clusters.at(idx);
+                if (l.id != idx) {
+                    SpatialTemporalException("The id does not match the idx.").raise();
+                }
+                _x << l.x << (l.x+l.rx);
+                _y << l.y << (l.y+l.ry);
+            }
+            figure->plot(_x, _y, "ro--");
+            figure->show();
+            qApp->exec();
+        }
+    }
     QVector<QVector<unsigned int> > allPatterns;
     QVector<int> projsFrom;
     for (int i=0; i<tinc.count(); ++i)
