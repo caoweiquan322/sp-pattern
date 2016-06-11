@@ -137,6 +137,18 @@ public:
         return inversed;
     }
 
+    // Generate synthetic data.
+public:
+    static void generateDataSet(const QString &originalDataPath,
+                                const QString &strNoiseLevel,
+                                const QString &strSampleInterval,
+                                const QString &outputDir);
+private:
+    static void _generateDataSet(const QString &originalDataPath,
+                                const QVector<double> &noiseLevel,
+                                const QVector<double> &sampleInterval,
+                                const QString &outputDir);
+
 public:
     static const QString tinsSuffix;
     static const QString segSuffix;

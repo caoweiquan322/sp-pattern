@@ -14,6 +14,8 @@
 #include "Helper.h"
 #include <QFile>
 #include <QDataStream>
+#include <QTextStream>
+#include <QDateTime>
 #include <QApplication>
 
 const QString Apps::tinsSuffix(".tins");
@@ -185,7 +187,7 @@ void Apps::visualizeDataset(const QString &fileDir, const QString &suffix,
             traj.doNormalize();
             // Do multi-threshold segmentation.
             QVector<Trajectory> subTrajs = traj.simplifyWithSEST(1.6, true);
-            QVector<SpatialTemporalPoint> points = subTrajs.last().getPoints();
+            QVector<SpatialTemporalPoint> points = traj.getPoints();//subTrajs.last().getPoints();
             QVector<double> x,y;
             foreach (SpatialTemporalPoint p, points) {
                 x<<p.x;
@@ -297,7 +299,7 @@ void Apps::clusterSegments(const QString &segmentsFile, const QVector<double> &w
             }
             qDebug()<<"#clusters: "<<entries.size();
             if (drawClusters) {
-                double range = 40000; // 40 KM
+                double range = 8000; // 40 KM
                 figure->xRange(-range, range);
                 figure->yRange(-range, range);
                 figure->show();
@@ -507,6 +509,7 @@ void Apps::scpm(const QString &clusterFileName, const QString &tincFileName,
                scMap,
                allPatterns,
                minSup);
+    allPatterns = cleanShortPatterns(allPatterns);
     qDebug()<<"Totally "<<allPatterns.count()<<" patterns were found.";
     storePatterns(allPatterns, clusters, outputFileName);
     visualizePatterns(allPatterns, clusters, minLen);
@@ -552,9 +555,9 @@ void Apps::visualizePatterns(const QVector<QVector<unsigned int> > &allPatterns,
         ++counter;
         qDebug()<<"Pattern "<<counter<<" has "<<pattern.count()<<" regions.";
     }
-//    double range = 5000;
-//    figure->xRange(-range, range);
-//    figure->yRange(-range, range);
+    double range = 8000;
+    figure->xRange(-range, range);
+    figure->yRange(-range, range);
     figure->show();
     qApp->exec();
 }
@@ -654,6 +657,7 @@ void Apps::testPrefixSpan()
                scMap,
                allPatterns,
                2);
+    allPatterns = cleanShortPatterns(allPatterns);
     qDebug()<<"All patterns are list as below:";
     foreach (QVector<unsigned int> p, allPatterns) {
         qDebug()<<p;
@@ -760,6 +764,104 @@ void Apps::testTrie()
     qDebug()<<"New patterns after cleaned:";
     foreach (QVector<unsigned int> pattern, newPatterns) {
         qDebug()<<pattern;
+    }
+}
+
+void Apps::generateDataSet(const QString &originalDataPath,
+                           const QString &strNoiseLevel,
+                           const QString &strSampleInterval,
+                           const QString &outputDir)
+{
+    // Checking input.
+    QStringList strLevels = strNoiseLevel.split(":");
+    QStringList strIntervals = strSampleInterval.split(":");
+    Helper::checkIntEqual(strLevels.count(), strIntervals.count());
+
+    // Converting input parameters into structured data.
+    QVector<double> levels;
+    QVector<double> intervals;
+    foreach (QString level, strLevels) {
+        levels.append(level.toDouble());
+    }
+    foreach (QString interval, strIntervals) {
+        intervals.append(interval.toDouble());
+    }
+    _generateDataSet(originalDataPath, levels, intervals, outputDir);
+}
+
+void Apps::_generateDataSet(const QString &originalDataPath,
+                            const QVector<double> &noiseLevel,
+                            const QVector<double> &sampleInterval,
+                            const QString &outputDir)
+{
+    // Get the file to store.
+    QString name = originalDataPath.split("/").last();
+    QString suffix = QString(".") + name.split(".").last();
+    qDebug()<<"Original data name: "<<name;
+    qDebug()<<"Original suffix: "<<suffix;
+
+    Trajectory traj(originalDataPath);
+    if (traj.count() <= 2) {
+        SpatialTemporalException("The trajectory is malformed.").raise();
+    }
+    QVector<SpatialTemporalPoint> points = traj.getPoints();
+    // Estimate average interval.
+    double avgInterval = 0;
+    for (int i=1; i<points.count(); ++i) {
+        avgInterval += (points[i].t - points[i-1].t);
+    }
+    avgInterval /= (points.count()-1);
+    double avgSERR = 0;
+    for (int i=1; i<points.count(); ++i) {
+        avgSERR += qFabs(points[i].x-points[i-1].x);
+        avgSERR += qFabs(points[i].y-points[i-1].y);
+    }
+    avgSERR/= ((points.count()-1)*2.0);
+    qDebug()<<"Average interval: "<<avgInterval<<", average spatial error: "<<avgSERR;
+
+    // Generate data.
+    int numGen = noiseLevel.count();
+    for (int i=0; i<numGen; ++i) {
+        // Estimate, generate and store one sample.
+        double interval = avgInterval*sampleInterval.at(i);
+        double tErr = interval*0.3;
+        double sErr = avgSERR*noiseLevel.at(i);
+        QString toStore = QString("%1/%2_%3.txt").arg(outputDir).arg(name).arg(i);
+        qDebug()<<"Store to "<<toStore<<" with interval: "<<interval<<", temporal error:"
+               <<tErr<<", spatial error: "<<sErr;
+
+        double t = traj.getStartTime();
+        int idx = 0;
+        double rate = 0, x, y;
+        QVector<SpatialTemporalPoint> npts;
+        while (t<points.last().t) {
+            while (t>points[idx+1].t)
+                ++idx;
+            // Interpolate.
+            rate = (t-points[idx].t)/(points[idx+1].t-points[idx].t);
+            if (rate<0 || rate>1) {
+                SpatialTemporalException(QString("Unexpected interpolate rate: %1").arg(rate)).raise();
+            }
+            x = (1-rate)*(points[idx].x) + rate*(points[idx+1].x) + sErr*(qrand()/((double)RAND_MAX) - 0.5);
+            y = (1-rate)*(points[idx].y) + rate*(points[idx+1].y) + sErr*(qrand()/((double)RAND_MAX) - 0.5);
+            npts.append(SpatialTemporalPoint(x, y, t));
+            t = t + qMax(interval + tErr*(qrand()/((double)RAND_MAX) - 0.5), 0.0);
+        }
+
+        QFile outFile(toStore);
+        if (!outFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            SpatialTemporalException(QString("Open file %1 error.").arg(toStore)).raise();
+        }
+        QTextStream out(&outFile);
+        out.setRealNumberPrecision(8);
+        QDateTime dttm;
+        QString dttmFormat = "yyyy-MM-dd H:mm:ss";
+        foreach (SpatialTemporalPoint p, npts) {
+            dttm = QDateTime::fromMSecsSinceEpoch((qint64)(1000*p.t));
+            out << p.x <<" "<< p.y <<" "<< dttm.toString(dttmFormat) << "\n";
+        }
+        out.flush();
+        outFile.close();
     }
 }
 

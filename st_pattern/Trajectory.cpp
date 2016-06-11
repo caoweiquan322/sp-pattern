@@ -17,7 +17,7 @@ const double Trajectory::MERCATOR_LATITUDE_LB = 2.5*2.0-M_PI/2;
 const double Trajectory::MERCATOR_LATITUDE_UB = 87.5*2.0-M_PI/2;
 const double Trajectory::SCALE_FACTOR_PRECISION = 1e-4;
 const double Trajectory::EARCH_RADIUS = 6378100.0;
-const double Trajectory::MAX_SPEED = 130.0/3.6;
+const double Trajectory::MAX_SPEED = 330.0/3.6;// Change back to 130 Km/H later.
 const double Trajectory::MAX_EXCEED_TO_FIX = 0.05;
 
 Trajectory::Trajectory(QObject *parent) : QObject(parent)

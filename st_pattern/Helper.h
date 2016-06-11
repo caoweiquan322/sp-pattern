@@ -221,7 +221,7 @@ public:
     static QStringList retrieveFilesWithSuffix(const QString &dirPath, const QString &suffix,
                                                const QStringList &currentList = QStringList());
 
-protected:
+public:
     /**
      * @brief MOPSI_DATETIME_FORMAT represents the datetime format of MOPSI dataset.
      */

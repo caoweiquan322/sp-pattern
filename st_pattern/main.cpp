@@ -84,10 +84,15 @@ int main(int argc, char *argv[])
                     args.count() > 7 ? args[7].toInt() : 1);
             qDebug()<<"\n============>  The "<<args[1]<<" ends  <============";
             //ret = a.exec();
+        } else if (args[1].compare("generate") == 0 && args.count() == 6) {
+            qDebug()<<"\n============> The "<<args[1]<<" begins <============";
+            Apps::generateDataSet(args[2], args[3], args[4], args[5]);
+            qDebug()<<"\n============>  The "<<args[1]<<" ends  <============";
+            //ret = a.exec();
         } else if (args[1].compare("test") == 0 && args.count() == 2) {
             qDebug()<<"\n============> The "<<args[1]<<" begins <============";
-            //Apps::testPrefixSpan();
-            Apps::testTrie();
+            Apps::testPrefixSpan();
+            //Apps::testTrie();
             qDebug()<<"\n============>  The "<<args[1]<<" ends  <============";
         } else {
             qDebug()<<"Malformed command "<<args[1];
