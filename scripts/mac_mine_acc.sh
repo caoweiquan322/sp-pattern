@@ -4,7 +4,7 @@ APP=../build-st_pattern-Desktop_Qt_5_4_1_clang_64bit-Release/st_pattern.app/Cont
 
 INTER_FILE_NAME=test
 
-SEG_DATA="../test_files/gen/diff_t"
+SEG_DATA="../test_files/gen/diff_s_large"
 SEG_SUFFIX=.txt
 SEG_STEP=1.8
 SEG_USE_SED=1
@@ -21,19 +21,21 @@ MINE_MIN_PAT_LEN=2
 SPMF_OUTPUT=output
 
 
-$APP seg $SEG_DATA $SEG_SUFFIX $INTER_FILE_NAME $SEG_STEP $SEG_USE_SED $SEG_MIN_LEN $SEG_USE_SEST
+#$APP seg $SEG_DATA $SEG_SUFFIX $INTER_FILE_NAME $SEG_STEP $SEG_USE_SED $SEG_MIN_LEN $SEG_USE_SEST
 
-$APP cluster $INTER_FILE_NAME $CLU_WEIGHT $INTER_FILE_NAME $CLU_THRESH $CLU_MEM_LIM
+#$APP cluster $INTER_FILE_NAME $CLU_WEIGHT $INTER_FILE_NAME $CLU_THRESH $CLU_MEM_LIM
 
 #$APP mine $INTER_FILE_NAME $INTER_FILE_NAME $INTER_FILE_NAME $MINE_RADIUS $MINE_MIN_SUP $MINE_MIN_PAT_LEN
 
-#transNum=$(cat $INTER_FILE_NAME.txt |wc -l)
-#echo There are $transNum transactions.
+#TRANS_NUM=$(cat $INTER_FILE_NAME.txt |wc -l)
+#echo There are $TRANS_NUM transactions.
+#sup=`expr $MIN_MIN_SUP /$TRANS_NUM`
 #sup=$(($MINE_MIN_SUP/$transNum))
+#let sup=MIN_MIN_SUP/TRANS_NUM
 #echo $sup
 
-java -jar ../tools/spmf.jar run BIDE+ $INTER_FILE_NAME.txt $SPMF_OUTPUT.txt 0.2
-$APP visualize $SPMF_OUTPUT $INTER_FILE_NAME 10
+#java -jar ../tools/spmf.jar run BIDE+ $INTER_FILE_NAME.txt $SPMF_OUTPUT.txt 0.3
+#$APP visualize $SPMF_OUTPUT $INTER_FILE_NAME 3
 
 #rm *.cluster
 rm *.s2c
