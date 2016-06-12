@@ -14,8 +14,8 @@ void printUsage() {
           <<"The CLUSTER-TRANS phase clusters the generated segments and then converts trajectories into transactional data.\n"
         <<"The MINE phase mines frequent pattern from the transactional data.\n";
     qDebug()<<"Usage:\n"
-           <<"st_pattern seg dataset_dir dataset_suffix output segmentation_step use_temporal min_seg_length\n"
-          <<"e.g.: st_pattern seg path_to_mopsi .txt mopsi_100 1.6 1 100.0\n\n"
+           <<"st_pattern seg dataset_dir dataset_suffix output segmentation_step use_temporal min_seg_length use_SEST\n"
+          <<"e.g.: st_pattern seg path_to_mopsi .txt mopsi_100 1.6 1 100.0 1\n\n"
          <<"st_pattern cluster segment_file w1:w2:w3:w4:w5:w6 output threshold [mem_lim_in_MB]\n"
         <<"e.g.: st_pattern cluster mopsi_100 0.0001:0.0001:0.0001:0.0001:0:0 mopsi_100_50 50.0 100\n\n"
        //<<"st_pattern trans tins_file s2c_file [output_tinc_file]\n"
@@ -46,15 +46,17 @@ int main(int argc, char *argv[])
             qDebug("\nPress any key to continue ...");
             return 0;
         }
-        if (args[1].compare("seg") == 0 && args.count() == 8) {
+        if (args[1].compare("seg") == 0 && args.count() == 9) {
             qDebug()<<"\n============> The "<<args[1]<<" begins <============";
             Apps::segmentTrajectories(args[2], args[3], args[4],
-                    args[5].toDouble(), (bool)(args[6].toInt()), args[7].toDouble());
+                    args[5].toDouble(), (bool)(args[6].toInt()), args[7].toDouble(),
+                    args[8].toInt());
             qDebug()<<"\n============>  The "<<args[1]<<" ends  <============";
             //ret = a.exec();
         } else if (args[1].compare("visualize") == 0 && args.count() >= 4) {
             qDebug()<<"\n============> The "<<args[1]<<" begins <============";
-            Apps::visualizeDataset(args[2], args[3], args.count() > 4 ? args[4].toDouble() : 40000.0);
+            //Apps::visualizeDataset(args[2], args[3], args.count() > 4 ? args[4].toDouble() : 40000.0);
+            Apps::visualizePatternsFromSPMF(args[2], args[3], args.count() > 4 ? args[4].toInt() : 0);
             qDebug()<<"\n============>  The "<<args[1]<<" ends  <============";
             //ret = a.exec();
         } else if (args[1].compare("cluster") == 0 && args.count() >= 6) {

@@ -41,7 +41,7 @@ public:
     // The segmentation phase.
     static void segmentTrajectories(const QString &fileDir, const QString &suffix,
                                     const QString &outputFile,
-                                    double segStep, bool useTemporal, double minLength);
+                                    double segStep, bool useTemporal, double minLength, bool useSEST);
     static QVector<SegmentLocation> filterSegments(const QVector<SegmentLocation> &segments, double minLength);
     static void testSegmentation();
 
@@ -52,6 +52,9 @@ public:
     // The clustering phase.
     static void clusterSegments(const QString &segmentsFile, const QVector<double> &weights,
                                 const QString &outputFile, double thresh, int memoryLim);
+    static void myRedist(const CFTreeND::cfentry_vec_type &entries,
+                         const QVector<ItemND> &buffer,
+                         std::vector<int> &item_cids);
     static QVector<ItemND> random(ItemND _inf, ItemND _sup,
                                   int num);
     static void testCluster(double thresh, int memoryLim = 0);
@@ -59,6 +62,11 @@ public:
     // The translate phase.
     static void transTrajectories(const QString &tins, const QString &s2c,
                                   const QString &tinc);
+    static void storeTinCToTxt(const QVector<QVector<unsigned int> > &allTinC,
+                               const QString &filePath);
+    static const QVector<QVector<unsigned int> > retrieveTinCFromTxt(const QString &filePath);
+    static void visualizePatternsFromSPMF(const QString &patterFileName,
+                                          const QString &clusterFileName, int minLen);
 
     // The SCPM mining phase.
     static void scpm(const QString &clusterFileName, const QString &tincFileName,

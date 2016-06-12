@@ -37,7 +37,8 @@ Apps::~Apps()
 
 void Apps::segmentTrajectories(const QString &fileDir, const QString &suffix,
                                const QString &outputFile,
-                               double segStep, bool useTemporal, double minLength)
+                               double segStep, bool useTemporal, double minLength,
+                               bool useSEST)
 {
     // Retrieve all the files.
     QStringList files = Helper::retrieveFilesWithSuffix(fileDir, suffix);
@@ -78,25 +79,41 @@ void Apps::segmentTrajectories(const QString &fileDir, const QString &suffix,
             // Preprocessing.
             traj.setReferencePoint(reference);
             traj.doMercatorProject();
-            traj.validate();
+            //traj.validate();
             traj.doNormalize();
             // Do multi-threshold segmentation.
-            QVector<Trajectory> subTrajs = traj.simplifyWithSEST(segStep, useTemporal);
-            qDebug()<<"Used "<<subTrajs.count()<<" thresholds.";
-            foreach (Trajectory sim, subTrajs) {
-//                QString curveName = QString("M=%1").arg(sim.count());
-//                sim.visualize(Qt::red, curveName);
-                QVector<SegmentLocation> segments = sim.getSegmentsAsEuclidPoints();
+            if (useSEST) {
+                QVector<Trajectory> subTrajs = traj.simplifyWithSEST(segStep, useTemporal);
+                qDebug()<<"Used "<<subTrajs.count()<<" thresholds.";
+                foreach (Trajectory sim, subTrajs) {
+//                    QString curveName = QString("M=%1").arg(sim.count());
+//                    sim.visualize("r--", curveName);
+//                    qApp->exec();
+                    QVector<SegmentLocation> segments = sim.getSegmentsAsEuclidPoints();
+                    segments = filterSegments(segments, minLength);
+                    if (segments.isEmpty()) {
+                        qDebug()<<"Segments become empty after filtered.";
+                        continue;
+                    }
+                    // Serialize the trajectory and its segments.
+                    trajOut<<segments.count();
+                    foreach (SegmentLocation l, segments) {
+                        segOut<<l;
+                        trajOut<<l.id;
+                    }
+                }
+            } else {
+                QVector<SegmentLocation> segments = traj.simplify(1000).getSegmentsAsEuclidPoints();
                 segments = filterSegments(segments, minLength);
                 if (segments.isEmpty()) {
                     qDebug()<<"Segments become empty after filtered.";
-                    continue;
-                }
-                // Serialize the trajectory and its segments.
-                trajOut<<segments.count();
-                foreach (SegmentLocation l, segments) {
-                    segOut<<l;
-                    trajOut<<l.id;
+                } else {
+                    // Serialize the trajectory and its segments.
+                    trajOut<<segments.count();
+                    foreach (SegmentLocation l, segments) {
+                        segOut<<l;
+                        trajOut<<l.id;
+                    }
                 }
             }
         } catch (SpatialTemporalException &e) {
@@ -334,7 +351,8 @@ void Apps::clusterSegments(const QString &segmentsFile, const QVector<double> &w
                 segIds<<lid;
 
                 if (buffer.count() == BUFFER_SIZE || segIn.atEnd()) {
-                    tree.redist( buffer.begin(), buffer.end(), entries, item_cids );
+                    //tree.redist( buffer.begin(), buffer.end(), entries, item_cids );
+                    myRedist(entries, buffer, item_cids);
                     for( unsigned int i = 0 ; i < item_cids.size() ; i++ ) {
                         s2cOut<<segIds.at(i)<<item_cids[i];
                     }
@@ -356,6 +374,30 @@ void Apps::clusterSegments(const QString &segmentsFile, const QVector<double> &w
     clusterFile.close();
     s2cFile.close();
 
+}
+
+void Apps::myRedist(const CFTreeND::cfentry_vec_type &entries,
+                    const QVector<ItemND> &buffer,
+                    std::vector<int> &item_cids)
+{
+    item_cids.clear();
+    foreach (const ItemND &item, buffer) {
+        double minDiff = Helper::INF;
+        std::size_t minIdx = 0;
+        for (std::size_t k=0; k<entries.size(); ++k) {
+            CFTreeND::float_type diff = 0;
+            CFTreeND::float_type avg = 0;
+            for (int i=0; i<CFTreeND::fdim; ++i) {
+                avg = entries[k].sum[i]/entries[k].n;
+                diff += (avg-item[i])*(avg-item[i]);
+            }
+            if (diff < minDiff) {
+                minDiff = diff;
+                minIdx = k;
+            }
+        }
+        item_cids.push_back(minIdx);
+    }
 }
 
 QVector<ItemND> Apps::random(ItemND _inf, ItemND _sup, int num)
@@ -488,6 +530,62 @@ void Apps::transTrajectories(const QString &tins, const QString &s2c,
     tinsFile.close();
     s2cFile.close();
     tincFile.close();
+
+    // Store a text version of tinc.
+    {
+        QVector<QVector<unsigned int> > allTinC = retrieveTinC(tinc + tincSuffix);
+        storeTinCToTxt(allTinC, tinc+".txt");
+    }
+}
+
+void Apps::storeTinCToTxt(const QVector<QVector<unsigned int> > &allTinC, const QString &filePath)
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        SpatialTemporalException("Open tinc text file error.").raise();
+    }
+    QTextStream fout(&file);
+    foreach (QVector<unsigned int> tinc, allTinC) {
+        for (int i=0; i<tinc.count()-1; ++i) {
+            fout << tinc.at(i) << " -1 ";
+        }
+        fout << tinc.last() << " -2\n";
+    }
+    file.close();
+}
+
+const QVector<QVector<unsigned int> > Apps::retrieveTinCFromTxt(const QString &filePath)
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        SpatialTemporalException("Open tinc text file error.").raise();
+    }
+    QTextStream fin(&file);
+
+    QVector<QVector<unsigned int> > allTinC;
+    while (!fin.atEnd()) {
+        QString line = fin.readLine().trimmed();
+        if (line.isEmpty())
+            continue;
+        QStringList parts = line.split(" ");
+        QVector<unsigned int> tinc;
+        for (int i=0; i<parts.count()-2; ++i) {
+            int idx = parts.at(i).toInt();
+            if (idx>=0)
+                tinc << idx;
+        }
+        allTinC << tinc;
+    }
+    file.close();
+
+    return allTinC;
+}
+
+void Apps::visualizePatternsFromSPMF(const QString &patterFileName, const QString &clusterFileName, int minLen)
+{
+    QVector<QVector<unsigned int> > allTinC = retrieveTinCFromTxt(patterFileName + ".txt");
+    QVector<SegmentLocation> clusters = retrieveClusters(clusterFileName + clusterSuffix);
+    visualizePatterns(allTinC, clusters, minLen);
 }
 
 void Apps::scpm(const QString &clusterFileName, const QString &tincFileName,
@@ -498,24 +596,24 @@ void Apps::scpm(const QString &clusterFileName, const QString &tincFileName,
     QHash<unsigned int, QVector<unsigned int> > scMap =
             getSpatialContinuityMap(clusters, continuityRadius);
     QVector<QVector<unsigned int> > tinc = retrieveTinC(tincFileName + tincSuffix);
-    {
-        // To remove. Visualize tinc.
-        foreach (QVector<unsigned int> t, tinc) {
-            MainWindow *figure = new MainWindow();
-            QVector<double> _x, _y;
-            foreach (unsigned int idx, t) {
-                SegmentLocation l = clusters.at(idx);
-                if (l.id != idx) {
-                    SpatialTemporalException("The id does not match the idx.").raise();
-                }
-                _x << l.x << (l.x+l.rx);
-                _y << l.y << (l.y+l.ry);
-            }
-            figure->plot(_x, _y, "ro--");
-            figure->show();
-            qApp->exec();
-        }
-    }
+//    {
+//        // To remove. Visualize tinc.
+//        foreach (QVector<unsigned int> t, tinc) {
+//            MainWindow *figure = new MainWindow();
+//            QVector<double> _x, _y;
+//            foreach (unsigned int idx, t) {
+//                SegmentLocation l = clusters.at(idx);
+//                if (l.id != idx) {
+//                    SpatialTemporalException("The id does not match the idx.").raise();
+//                }
+//                _x << l.x << (l.x+l.rx);
+//                _y << l.y << (l.y+l.ry);
+//            }
+//            figure->plot(_x, _y, "ro--");
+//            figure->show();
+//            qApp->exec();
+//        }
+//    }
     QVector<QVector<unsigned int> > allPatterns;
     QVector<int> projsFrom;
     for (int i=0; i<tinc.count(); ++i)
@@ -555,7 +653,7 @@ void Apps::visualizePatterns(const QVector<QVector<unsigned int> > &allPatterns,
                              const QVector<SegmentLocation> &clusters,
                              int minLen)
 {
-    MainWindow *figure = new MainWindow();
+    //MainWindow *figure = new MainWindow();
     QStringList styles;
     styles<<"ro--"<<"gx--"<<"bd--"<<"m+--"<<"c*--"<<"k^--"<<"yv--";
     SegmentLocation l;
@@ -569,15 +667,18 @@ void Apps::visualizePatterns(const QVector<QVector<unsigned int> > &allPatterns,
             _x << l.x << (l.x+l.rx);
             _y << l.y << (l.y+l.ry);
         }
+        MainWindow *figure = new MainWindow();
         figure->plot(_x, _y, styles.at(counter % styles.count()));
         ++counter;
         qDebug()<<"Pattern "<<counter<<" has "<<pattern.count()<<" regions.";
+
+        double range = 8000;
+        figure->xRange(-range, range);
+        figure->yRange(-range, range);
+        figure->show();
+        qApp->exec();
     }
-    double range = 8000;
-    figure->xRange(-range, range);
-    figure->yRange(-range, range);
-    figure->show();
-    qApp->exec();
+
 }
 
 void Apps::prefixSpan(const QVector<unsigned int> &currPrefix,
