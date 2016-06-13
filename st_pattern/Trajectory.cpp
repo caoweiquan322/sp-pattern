@@ -267,7 +267,7 @@ Trajectory Trajectory::simplify(double threshold, bool useCascade) const
     return slice(indices);
 }
 
-QVector<Trajectory> Trajectory::simplifyWithSEST(double step, bool useTemporal) const
+QVector<Trajectory> Trajectory::simplifyWithSEST(double dotsTh, double step, bool useTemporal) const
 {
     // Checking.
     if (!normalized)
@@ -290,8 +290,8 @@ QVector<Trajectory> Trajectory::simplifyWithSEST(double step, bool useTemporal) 
     // Simplify by cascade structure.
     qDebug()<<"Use temporal info: "<<useTemporal;
     QVector<Trajectory> subTrajs;
-    static const double DEFAULT_START_THRESHOLD = 100;// Start by 100 meters as a threshold by default.
-    static const double DEFAULT_END_THRESHOLD = 1e8;//
+    static const double DEFAULT_START_THRESHOLD = dotsTh;// Start by 100 meters as a threshold by default.
+    static const double DEFAULT_END_THRESHOLD = 1e7;//
     double startThreshold = qMin(DEFAULT_START_THRESHOLD, DEFAULT_END_THRESHOLD/8.0);
     int cascadeCount = qFloor(qLn(DEFAULT_END_THRESHOLD/startThreshold)/qLn(step))+1;
     double k = qPow(DEFAULT_END_THRESHOLD/startThreshold, 1.0/(cascadeCount-1));

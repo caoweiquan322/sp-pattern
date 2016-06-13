@@ -45,7 +45,7 @@ public:
     void doNormalize();
     Trajectory sample(int rate) const;
     Trajectory simplify(double threshold, bool useCascade = false) const;
-    QVector<Trajectory> simplifyWithSEST(double step, bool useTemporal = true) const;
+    QVector<Trajectory> simplifyWithSEST(double dotsTh, double step, bool useTemporal = true) const;
     Trajectory slice(const QVector<int> &indices) const;
 
     // The visualization.

@@ -38,7 +38,7 @@ Apps::~Apps()
 void Apps::segmentTrajectories(const QString &fileDir, const QString &suffix,
                                const QString &outputFile,
                                double segStep, bool useTemporal, double minLength,
-                               bool useSEST)
+                               bool useSEST, double dotsTh)
 {
     // Retrieve all the files.
     QStringList files = Helper::retrieveFilesWithSuffix(fileDir, suffix);
@@ -83,7 +83,7 @@ void Apps::segmentTrajectories(const QString &fileDir, const QString &suffix,
             traj.doNormalize();
             // Do multi-threshold segmentation.
             if (useSEST) {
-                QVector<Trajectory> subTrajs = traj.simplifyWithSEST(segStep, useTemporal);
+                QVector<Trajectory> subTrajs = traj.simplifyWithSEST(dotsTh, segStep, useTemporal);
                 qDebug()<<"Used "<<subTrajs.count()<<" thresholds.";
                 foreach (Trajectory sim, subTrajs) {
 //                    QString curveName = QString("M=%1").arg(sim.count());
@@ -103,7 +103,7 @@ void Apps::segmentTrajectories(const QString &fileDir, const QString &suffix,
                     }
                 }
             } else {
-                QVector<SegmentLocation> segments = traj.simplify(1000).getSegmentsAsEuclidPoints();
+                QVector<SegmentLocation> segments = traj.simplify(dotsTh).getSegmentsAsEuclidPoints();
                 segments = filterSegments(segments, minLength);
                 if (segments.isEmpty()) {
                     qDebug()<<"Segments become empty after filtered.";
@@ -291,8 +291,9 @@ void Apps::clusterSegments(const QString &segmentsFile, const QVector<double> &w
         tree.cluster(entries);
         {
             // Visualize the clusters.
+            //qDebug()<<"Comment visualization of clusters for time measure.";
             bool drawClusters = entries.size() < 400;
-            qDebug()<<"#clusters: "<<entries.size();
+            //qDebug()<<"#clusters: "<<entries.size();
             QStringList styles;
             styles<<"ro-"<<"gx-"<<"bd-"<<"m+-"<<"c*-"<<"k^-"<<"yv-";
             MainWindow *figure = NULL;
@@ -307,7 +308,7 @@ void Apps::clusterSegments(const QString &segmentsFile, const QVector<double> &w
                 }
                 clusterOut << i;
                 length = qSqrt(avg[2]*avg[2]+avg[3]*avg[3]);
-                qDebug()<<"Cluster "<<i<<" has "<<entries[i].n<<" segments. Average length: "<<length;
+                //qDebug()<<"Cluster "<<i<<" has "<<entries[i].n<<" segments. Average length: "<<length;
                 QVector<double> _x, _y;
                 _x<<avg[0]<<(avg[0]+avg[2]);
                 _y<<avg[1]<<(avg[1]+avg[3]);
@@ -315,6 +316,7 @@ void Apps::clusterSegments(const QString &segmentsFile, const QVector<double> &w
                     figure->plot(_x, _y, styles.at(i % styles.count()), "");//QString("CLS %1").arg(i)
             }
             qDebug()<<"#clusters: "<<entries.size();
+            qDebug()<<"#concentration: "<<(numSegments/1.0/entries.size());
             if (drawClusters) {
                 double range = 8000; // 40 KM
                 figure->xRange(-range, range);
@@ -628,6 +630,7 @@ void Apps::scpm(const QString &clusterFileName, const QString &tincFileName,
     allPatterns = cleanShortPatterns(allPatterns);
     qDebug()<<"Totally "<<allPatterns.count()<<" patterns were found.";
     storePatterns(allPatterns, clusters, outputFileName);
+    //qDebug()<<"Comment visualization of patterns for time measure.";
     visualizePatterns(allPatterns, clusters, minLen);
 }
 
@@ -653,7 +656,7 @@ void Apps::visualizePatterns(const QVector<QVector<unsigned int> > &allPatterns,
                              const QVector<SegmentLocation> &clusters,
                              int minLen)
 {
-    //MainWindow *figure = new MainWindow();
+    MainWindow *figure = new MainWindow();
     QStringList styles;
     styles<<"ro--"<<"gx--"<<"bd--"<<"m+--"<<"c*--"<<"k^--"<<"yv--";
     SegmentLocation l;
@@ -667,17 +670,16 @@ void Apps::visualizePatterns(const QVector<QVector<unsigned int> > &allPatterns,
             _x << l.x << (l.x+l.rx);
             _y << l.y << (l.y+l.ry);
         }
-        MainWindow *figure = new MainWindow();
+        //MainWindow *figure = new MainWindow();
         figure->plot(_x, _y, styles.at(counter % styles.count()));
         ++counter;
         qDebug()<<"Pattern "<<counter<<" has "<<pattern.count()<<" regions.";
-
-        double range = 8000;
-        figure->xRange(-range, range);
-        figure->yRange(-range, range);
-        figure->show();
-        qApp->exec();
     }
+//    double range = 8000;
+//    figure->xRange(-range, range);
+//    figure->yRange(-range, range);
+    figure->show();
+    qApp->exec();
 
 }
 
@@ -977,7 +979,7 @@ void Apps::_generateDataSet(const QString &originalDataPath,
         QString dttmFormat = "yyyy-MM-dd H:mm:ss";
         foreach (SpatialTemporalPoint p, npts) {
             dttm = QDateTime::fromMSecsSinceEpoch((qint64)(1000*p.t));
-            out << p.x <<" "<< p.y <<" "<< dttm.toString(dttmFormat) << "\n";
+            out << p.y <<" "<< p.x <<" "<< dttm.toString(dttmFormat) << "\n";
         }
         out.flush();
         outFile.close();

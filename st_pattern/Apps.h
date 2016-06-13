@@ -41,7 +41,7 @@ public:
     // The segmentation phase.
     static void segmentTrajectories(const QString &fileDir, const QString &suffix,
                                     const QString &outputFile,
-                                    double segStep, bool useTemporal, double minLength, bool useSEST);
+                                    double segStep, bool useTemporal, double minLength, bool useSEST, double dotsTh);
     static QVector<SegmentLocation> filterSegments(const QVector<SegmentLocation> &segments, double minLength);
     static void testSegmentation();
 
