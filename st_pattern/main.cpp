@@ -86,6 +86,11 @@ int main(int argc, char *argv[])
                     args.count() > 7 ? args[7].toInt() : 1);
             qDebug()<<"\n============>  The "<<args[1]<<" ends  <============";
             //ret = a.exec();
+        } else if (args[1].compare("evaluate") == 0 && args.count() == 5) {
+            qDebug()<<"\n============> The "<<args[1]<<" begins <============";
+            Apps::evaluateMiningResults(args[2], args[3], args[4]);
+            qDebug()<<"\n============>  The "<<args[1]<<" ends  <============";
+            //ret = a.exec();
         } else if (args[1].compare("generate") == 0 && args.count() == 6) {
             qDebug()<<"\n============> The "<<args[1]<<" begins <============";
             Apps::generateDataSet(args[2], args[3], args[4], args[5]);

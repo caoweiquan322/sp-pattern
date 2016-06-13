@@ -82,6 +82,7 @@ public:
                            const QVector<QVector<unsigned int> > &projs,
                            const QVector<int> &projsFrom,
                            const QHash<unsigned int, QVector<unsigned int> > scMap,
+                           const QHash<unsigned int, unsigned int> &t2otMap,
                            QVector<QVector<unsigned int> > &allPatterns,
                            int minSup);
     static void testPrefixSpan();
@@ -144,6 +145,12 @@ public:
         }
         return inversed;
     }
+
+    // Evaluation.
+    static void evaluateMiningResults(const QString &patternFileName,
+                                      const QString &referenceTrajFilePath,
+                                      const QString &originalTrajFilePath);
+    static double pointToSegDist(double x, double y, double x1, double y1, double x2, double y2);
 
     // Generate synthetic data.
 public:

@@ -16,16 +16,16 @@ if __name__ == '__main__':
     SEG_STEP=1.8
     SEG_USE_SED=1
     SEG_MIN_LEN=10.0
-    SEG_USE_SEST=1
-    SEG_DOTS_TH = 1000.0
+    SEG_USE_SEST=0
+    SEG_DOTS_TH = 256000.0
 
     CLU_WEIGHT="0.001:0.001:0.001:0.001:0:0"
-    CLU_THRESH=1.6
+    CLU_THRESH=0.4
     CLU_MEM_LIM=500
 
     MINE_RADIUS=1000.0
     MINE_MIN_SUP=4
-    MINE_MIN_PAT_LEN=2
+    MINE_MIN_PAT_LEN=3
     SPMF_OUTPUT="output"
     MINE_METHOD = "SCPM"
     
@@ -45,3 +45,5 @@ if __name__ == '__main__':
             print("There's no transactions at all.")
     _end = time.time()
     print('Time cost: %f seconds.' % (_end-_start,))
+    
+    os.system("%s evaluate %s %s %s" % (APP, INTER_FILE_NAME, "../test_files/gen/diff_s_large/r6.txt_0.txt", "../test_files/r6.txt"));

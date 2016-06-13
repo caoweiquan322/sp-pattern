@@ -72,6 +72,8 @@ void Apps::segmentTrajectories(const QString &fileDir, const QString &suffix,
         SpatialTemporalException(QString("Open file %1 error.").arg(trajFile.fileName())).raise();
     }
     QDataStream trajOut(&trajFile);
+    QHash<unsigned int, unsigned int> t2otMap;
+    unsigned int tCounter = 0, otCounter = 0;
     foreach (QString file, files) {
         try {
             qDebug()<<"Processing "<<file;
@@ -101,6 +103,8 @@ void Apps::segmentTrajectories(const QString &fileDir, const QString &suffix,
                         segOut<<l;
                         trajOut<<l.id;
                     }
+                    t2otMap[tCounter] = otCounter;
+                    ++tCounter;
                 }
             } else {
                 QVector<SegmentLocation> segments = traj.simplify(dotsTh).getSegmentsAsEuclidPoints();
@@ -114,8 +118,11 @@ void Apps::segmentTrajectories(const QString &fileDir, const QString &suffix,
                         segOut<<l;
                         trajOut<<l.id;
                     }
+                    t2otMap[tCounter] = otCounter;
+                    ++tCounter;
                 }
             }
+            ++otCounter;
         } catch (SpatialTemporalException &e) {
             qDebug()<<"Error occurs while segmenting trajectory: "<<file<<"\nDetails: "
                    << e.getMessage();
@@ -128,6 +135,17 @@ void Apps::segmentTrajectories(const QString &fileDir, const QString &suffix,
     }
     segFile.close();
     trajFile.close();
+
+    // store t2ot.
+    {
+        QFile t2otFile(outputFile + ".t2ot");
+        t2otFile.open(QIODevice::WriteOnly);
+        QDataStream fout(&t2otFile);
+        foreach (unsigned int k, t2otMap.keys()) {
+            fout << k << t2otMap[k];
+        }
+        t2otFile.close();
+    }
 }
 
 QVector<SegmentLocation> Apps::filterSegments(const QVector<SegmentLocation> &segments, double minLength)
@@ -291,8 +309,8 @@ void Apps::clusterSegments(const QString &segmentsFile, const QVector<double> &w
         tree.cluster(entries);
         {
             // Visualize the clusters.
-            //qDebug()<<"Comment visualization of clusters for time measure.";
-            bool drawClusters = entries.size() < 400;
+            qDebug()<<"Comment visualization of clusters for time measure.";
+            bool drawClusters = false;//entries.size() < 400;
             //qDebug()<<"#clusters: "<<entries.size();
             QStringList styles;
             styles<<"ro-"<<"gx-"<<"bd-"<<"m+-"<<"c*-"<<"k^-"<<"yv-";
@@ -594,6 +612,20 @@ void Apps::scpm(const QString &clusterFileName, const QString &tincFileName,
                 const QString &outputFileName, double continuityRadius, int minSup,
                 int minLen)
 {
+    // retrieve t2ot.
+    QHash<unsigned int, unsigned int> t2otMap;
+    {
+        QFile t2otFile(tincFileName + ".t2ot");// This should be fixed. not tincFileName.
+        t2otFile.open(QIODevice::ReadOnly);
+        QDataStream fin(&t2otFile);
+        while (!fin.atEnd()) {
+            unsigned k,v;
+            fin >> k >> v;
+            t2otMap[k] = v;
+        }
+        t2otFile.close();
+    }
+
     QVector<SegmentLocation> clusters = retrieveClusters(clusterFileName + clusterSuffix);
     QHash<unsigned int, QVector<unsigned int> > scMap =
             getSpatialContinuityMap(clusters, continuityRadius);
@@ -625,13 +657,14 @@ void Apps::scpm(const QString &clusterFileName, const QString &tincFileName,
                tinc,
                projsFrom,
                scMap,
+               t2otMap,
                allPatterns,
                minSup);
     allPatterns = cleanShortPatterns(allPatterns);
     qDebug()<<"Totally "<<allPatterns.count()<<" patterns were found.";
     storePatterns(allPatterns, clusters, outputFileName);
-    //qDebug()<<"Comment visualization of patterns for time measure.";
-    visualizePatterns(allPatterns, clusters, minLen);
+    qDebug()<<"Comment visualization of patterns for time measure.";
+    //visualizePatterns(allPatterns, clusters, minLen);
 }
 
 void Apps::storePatterns(const QVector<QVector<unsigned int> > &allPatterns,
@@ -647,7 +680,9 @@ void Apps::storePatterns(const QVector<QVector<unsigned int> > &allPatterns,
         patternOut << pattern.count();
         foreach (unsigned int id, pattern) {
             patternOut << clusters[id];
+            //printf("%d, ", id);
         }
+        //printf("\n");
     }
     patternFile.close();
 }
@@ -687,6 +722,7 @@ void Apps::prefixSpan(const QVector<unsigned int> &currPrefix,
                       const QVector<QVector<unsigned int> > &projs,
                       const QVector<int> &projsFrom,
                       const QHash<unsigned int, QVector<unsigned int> > scMap,
+                      const QHash<unsigned int, unsigned int> &t2otMap,
                       QVector<QVector<unsigned int> > &allPatterns,
                       int minSup)
 {
@@ -704,25 +740,27 @@ void Apps::prefixSpan(const QVector<unsigned int> &currPrefix,
         return;
     //qDebug()<<"Prefix: "<<currPrefix<<", tocheck: "<<toCheck;
     // Find frequent items from projections.
-    QVector<unsigned int> freq;
-    foreach (unsigned int c, toCheck) {
-        int counter = 0;
-        for (int i=0; i<projs.count(); ++i) {
-            if (projs[i].indexOf(c, projsFrom[i]) >= 0)
-                ++counter;
-        }
-        if (counter >= minSup)
-            freq << c;
-    }
-    if (freq.isEmpty())
-        return;
+//    QVector<unsigned int> freq;
+//    foreach (unsigned int c, toCheck) {
+//        int counter = 0;
+//        for (int i=0; i<projs.count(); ++i) {
+//            if (projs[i].indexOf(c, projsFrom[i]) >= 0)
+//                ++counter;
+//        }
+//        if (counter >= minSup)
+//            freq << c;
+//    }
+//    if (freq.isEmpty())
+//        return;
     //qDebug()<<"Prefix: "<<currPrefix<<", freq: "<<freq;
     // Store patterns and invoke PrefixSpan recursively.
-    foreach (unsigned int c, freq) {
+    foreach (unsigned int c, toCheck) {
         QVector<unsigned int> newPrefix = currPrefix;
         newPrefix.append(c);
         //allPatterns <<  newPrefix;
-        int beforePatternsCount = allPatterns.count();
+        //int beforePatternsCount = allPatterns.count();
+        QSet<unsigned int> uniqueIds;
+        QHash<unsigned int, unsigned int> newT2otMap;
         QVector<QVector<unsigned int> > newProjs;
         QVector<int> newProjsFrom;
         for (int i=0; i<projs.count(); ++i) {
@@ -730,17 +768,23 @@ void Apps::prefixSpan(const QVector<unsigned int> &currPrefix,
             if (idx >= 0 && idx < projs[i].count()-1) {
                 newProjs << projs[i];
                 newProjsFrom << (idx+1);
+                if (!t2otMap.contains(i)) {
+                    SpatialTemporalException("Found t2otMap does not contain one id.").raise();
+                }
+                newT2otMap[newProjs.count()-1] = t2otMap[i];
+                uniqueIds.insert(t2otMap[i]);
             }
         }
         //qDebug()<<"New projs and new from for"<<c<<" is "<<newProjs<<", "<<newProjsFrom;
-        if (newProjs.count() >= minSup) {
-            prefixSpan(newPrefix, newProjs, newProjsFrom, scMap, allPatterns, minSup);
+        if (uniqueIds.count() >= minSup) {
+            prefixSpan(newPrefix, newProjs, newProjsFrom, scMap, newT2otMap, allPatterns, minSup);
+            // Check if this is a leaf node of the prefix-span tree. However we will construct
+            // a (suffix) trie to solve this problem.
+            if (true) {//beforePatternsCount == allPatterns.count()) {
+                allPatterns << newPrefix;
+            }
         }
-        // Check if this is a leaf node of the prefix-span tree. However we will construct
-        // a (suffix) trie to solve this problem.
-        if (true) {//beforePatternsCount == allPatterns.count()) {
-            allPatterns << newPrefix;
-        }
+
     }
 }
 
@@ -770,12 +814,17 @@ void Apps::testPrefixSpan()
     scMap[4] = n4;
     scMap[5] = n5;
     qDebug()<<"Spatial continuity map: "<<scMap;
+    QHash<unsigned int, unsigned int> t2otMap;
+    for (unsigned int i=0; i<tinc.count(); ++i) {
+        t2otMap[i] = i;
+    }
 
     // Evaluation.
     prefixSpan(QVector<unsigned int>(),
                tinc,
                projsFrom,
                scMap,
+               t2otMap,
                allPatterns,
                2);
     allPatterns = cleanShortPatterns(allPatterns);
@@ -888,6 +937,85 @@ void Apps::testTrie()
     }
 }
 
+void Apps::evaluateMiningResults(const QString &patternFileName,
+                                 const QString &referenceTrajFilePath,
+                                 const QString &originalTrajFilePath)
+{
+    // Retrieve one file to estimate the reference point.
+    SpatialTemporalPoint reference;
+    try {
+        Trajectory ref(referenceTrajFilePath);
+        //ref.validate();
+        reference = ref.estimateReferencePoint();
+    } catch (SpatialTemporalException &e) {
+        qDebug()<<"Error occurs while estimating reference point. Details:\n"<<e.getMessage();
+        return;
+    } catch (...) {
+        qDebug()<<"Unknown error occurs while estimating reference point.";
+    }
+
+    Trajectory traj(originalTrajFilePath);
+    // Preprocessing.
+    traj.setReferencePoint(reference);
+    traj.doMercatorProject();
+    //traj.validate();
+    traj.doNormalize();
+
+    // Retrieve patterns.
+    QVector<QVector<SegmentLocation> > patterns;
+    {
+        QFile file(patternFileName + patternSuffix);
+        file.open(QIODevice::ReadOnly);
+        QDataStream fin(&file);
+        unsigned int numSegments;
+        QVector<SegmentLocation> pattern;
+        SegmentLocation s;
+        while (!fin.atEnd()) {
+            fin >> numSegments;
+            printf("%d: ", numSegments);
+            for (unsigned int i=0; i<numSegments; ++i) {
+                fin >> s;
+                pattern << s;
+                printf("(%f,%f,%f,%f), ", s.x, s.y, s.rx, s.ry);
+            }
+            printf("\n");
+            patterns << pattern;
+        }
+
+        file.close();
+    }
+
+    // Calculate average distance.
+    QVector<SpatialTemporalPoint> points = traj.getPoints();
+    double sumErr = 0;
+    foreach (SpatialTemporalPoint p, points) {
+        double minDis = Helper::INF;
+        foreach (QVector<SegmentLocation> pattern, patterns) {
+            foreach (SegmentLocation s, pattern) {
+                minDis = qMin(minDis, pointToSegDist(p.x, p.y, s.x, s.y, s.x+s.rx, s.y+s.ry));
+            }
+        }
+        sumErr += minDis;
+    }
+    qDebug()<<"Average distance of the pattern is: "<<(sumErr/points.count());
+}
+
+double Apps::pointToSegDist(double x, double y, double x1, double y1, double x2, double y2)
+{
+    double cross = (x2 - x1) * (x - x1) + (y2 - y1) * (y - y1);
+    if (cross <= 0)
+        return qSqrt((x - x1) * (x - x1) + (y - y1) * (y - y1));
+
+    double d2 = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+    if (cross >= d2)
+        return qSqrt((x - x2) * (x - x2) + (y - y2) * (y - y2));
+
+    double r = cross / d2;
+    double px = x1 + (x2 - x1) * r;
+    double py = y1 + (y2 - y1) * r;
+    return qSqrt((x - px) * (x - px) + (py - y1) * (py - y1));
+}
+
 void Apps::generateDataSet(const QString &originalDataPath,
                            const QString &strNoiseLevel,
                            const QString &strSampleInterval,
@@ -955,6 +1083,7 @@ void Apps::_generateDataSet(const QString &originalDataPath,
         int idx = 0;
         double rate = 0, x, y;
         QVector<SpatialTemporalPoint> npts;
+        qDebug()<<points.first().x<<", "<<points.first().y;
         while (t<points.last().t) {
             while (t>points[idx+1].t)
                 ++idx;
@@ -977,9 +1106,11 @@ void Apps::_generateDataSet(const QString &originalDataPath,
         out.setRealNumberPrecision(8);
         QDateTime dttm;
         QString dttmFormat = "yyyy-MM-dd H:mm:ss";
+        qDebug()<<npts.first().x<<", "<<npts.first().y;
         foreach (SpatialTemporalPoint p, npts) {
             dttm = QDateTime::fromMSecsSinceEpoch((qint64)(1000*p.t));
             out << p.y <<" "<< p.x <<" "<< dttm.toString(dttmFormat) << "\n";
+            //qDebug()<< p.x <<", "<<p.y;
         }
         out.flush();
         outFile.close();
